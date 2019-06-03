@@ -3,6 +3,9 @@ import yaml
 import cv2
 import numpy as np
 from argparse import ArgumentParser
+import tensorflow as tf
+import sys
+import glob
 
 def parse_args():
     parser = ArgumentParser()
@@ -11,7 +14,7 @@ def parse_args():
 
     return parser.parse_args()
 
-def generate_dataset(path, output_path, dim = (400, 400), smooth = True):
+def generate_dataset(path, output_path, dim = (128, 128), smooth = True, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
@@ -33,13 +36,13 @@ def generate_dataset(path, output_path, dim = (400, 400), smooth = True):
             #print(imageName)
 
             # Open images
-            rgbimg = cv2.imread(path + rgbImagesPath + imageName + '.png', 1)
-            nirimg = cv2.imread(path + nirImagesPath + imageName + '.png', 1)
+            rgbimg = cv2.cvtColor(cv2.imread(path + rgbImagesPath + imageName + '.png', 1), cv2.COLOR_BGR2RGB)
+            nirimg = cv2.cvtColor(cv2.imread(path + nirImagesPath + imageName + '.png', 1), cv2.COLOR_BGR2RGB) #TODO convert to grayscale
             maskNir = cv2.imread(path + maskNirPath + imageName + '.png', 1)
             maskRgb = cv2.imread(path + maskRgbPath + imageName + '.png', 1)
             # if rgbimg is None or nirimg is None or maskNir is None or maskRgb is None:
             #     continue
-            imgrayRgb = maskRgb[:,:,1]
+            imgrayRgb = maskRgb[:, :, 1]
             imgrayNir = cv2.cvtColor(maskNir, cv2.COLOR_RGB2GRAY)
 
             # Image shape
@@ -113,12 +116,13 @@ def generate_dataset(path, output_path, dim = (400, 400), smooth = True):
                         top = stem_y + maxTot
                         bot = stem_y - maxTot
 
-                        # print(maxTot)
+                        print(maxTot)
 
                         if bot > 0 and top < shape[0] and left > 0 and right < shape[1] and maxTot > 200:
                             # Crop images
                             cropRgb = finalRgb[bot:top, left:right, :]
                             cropNir = finalNir[bot:top, left:right, :]
+                            cropMask = finalMask[bot:top, left:right]
 
                             # backtorgb = cv2.cvtColor(bitNir, cv2.COLOR_GRAY2RGB)
                             # cv2.rectangle(rgbimg, (right, bot), (left, top), (0, 255, 0), 1)
@@ -131,37 +135,79 @@ def generate_dataset(path, output_path, dim = (400, 400), smooth = True):
                             # Resize image
                             cropRgb = cv2.resize(cropRgb, dim, interpolation=cv2.INTER_AREA)
                             cropNir = cv2.resize(cropNir, dim, interpolation=cv2.INTER_AREA)
+                            cropMask = cv2.resize(cropMask, dim, interpolation=cv2.INTER_AREA)
 
                             # Write image
-                            cv2.imwrite(output_path + 'RGB/' + imageName + '_' + str(id) + '.png', cropRgb)
-                            cv2.imwrite(output_path + 'NIR/' + imageName + '_' + str(id) + '.png', cropNir)
+                            if save_images:
+                                #cv2.imwrite(output_path + 'RGB/' + imageName + '_' + str(id) + '.png', cropRgb)
+                                #cv2.imwrite(output_path + 'NIR/' + imageName + '_' + str(id) + '.png', cropNir)
+                                #cv2.imwrite(output_path + 'Mask/' + imageName + '_' + str(id) + '.png', cropMask)
+                                cv2.imwrite('../dataset/test/' + imageName + '_' + str(id) + '.png', cropMask)
 
-# train_filename = 'train.tfrecords'  # address to save the TFRecords file
-# # open the TFRecords file
-# writer = tf.python_io.TFRecordWriter(train_filename)
-# for i in range(len(train_addrs)):
-#     # print how many images are saved every 1000 images
-#     if not i % 1000:
-#         print
-#         'Train data: {}/{}'.format(i, len(train_addrs))
-#         sys.stdout.flush()
-#     # Load the image
-#     img = load_image(train_addrs[i])
-#     label = train_labels[i]
-#     # Create a feature
-#     feature = {'train/label': _int64_feature(label),
-#                'train/image': _bytes_feature(tf.compat.as_bytes(img.tostring()))}
-#     # Create an example protocol buffer
-#     example = tf.train.Example(features=tf.train.Features(feature=feature))
-#
-#     # Serialize to string and write on the file
-#     writer.write(example.SerializeToString())
-#
-# writer.close()
-# sys.stdout.flush()
+                            #yield cropRgb, cropNir, cropMask, imageName + '_' + str(id) + '.png'
+
+def image2tfrecords(img):
+    str = tf.compat.as_bytes(img.tostring())
+    bts = tf.train.BytesList(value=[str])
+    feature = tf.train.Feature(bytes_list=bts)
+
+    return feature
 
 if __name__ == '__main__':
     args = parse_args()
 
+    # open the TFRecords file
+    data_path = '../dataset/train.tfrecords'  # address to save the TFRecords file
+
     # Load data
-    generate_dataset(path = args.dataset_path, output_path=args.output_path)
+    generate_dataset(path = args.dataset_path, output_path=args.output_path, save_images=True)
+
+    #writer = tf.python_io.TFRecordWriter(data_path)
+
+    # for i in generator:
+    #     rgb = i[0]
+    #     nir = i[1]
+    #     mask = i[2]
+    #     name = i[3]
+    #
+    #     feature = {name + '/rgb': image2tfrecords(rgb),
+    #                name + '/nir': image2tfrecords(nir),
+    #                name + '/mask': image2tfrecords(mask)}
+    #
+    #     # Create an example protocol buffer
+    #     example = tf.train.Example(features=tf.train.Features(feature=feature))
+    #
+    #     # Serialize to string and write on the file
+    #     writer.write(example.SerializeToString())
+    #
+    # writer.close()
+    # sys.stdout.flush()
+
+
+
+
+    # with tf.Session() as sess:
+    #     feature = {'train/image': tf.FixedLenFeature([], tf.string),
+    #                'train/label': tf.FixedLenFeature([], tf.int64)}
+    #
+    #     # Create a list of filenames and pass it to a queue
+    #     filename_queue = tf.train.string_input_producer([data_path], num_epochs=1)
+    #
+    #     # Define a reader and read the next record
+    #     reader = tf.TFRecordReader()
+    #     _, serialized_example = reader.read(filename_queue)
+    #
+    #     # Decode the record read by the reader
+    #     features = tf.parse_single_example(serialized_example, features=feature)
+    #
+    #     # Convert the image data from string back to the numbers
+    #     image = tf.decode_raw(features['train/image'], tf.float32)
+    #
+    #     # Reshape image data into the original shape
+    #     image = tf.reshape(image, [224, 224, 3])
+    #
+    #     # Any preprocessing here ...
+    #
+    #     # Creates batches by randomly shuffling tensors
+    #     images, labels = tf.train.shuffle_batch([image, label], batch_size=10, capacity=30, num_threads=1,
+    #                                             min_after_dequeue=10)
