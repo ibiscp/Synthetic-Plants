@@ -14,6 +14,32 @@ def parse_args():
 
     return parser.parse_args()
 
+def flip_image(img, mode = 1):
+    # Horizontal = 1
+    # Vertical = 0
+    # Both = -1
+    return cv2.flip(img, mode)
+
+def rotate_image(img, angle):
+    rows,cols = img.shape
+    M = cv2.getRotationMatrix2D((cols/2,rows/2), angle, 1)
+    return cv2.warpAffine(img,M,(cols,rows), borderMode=1)
+
+def augment_image(img):
+    flip_list = [-1, 0, 1]
+    rotation_list = [0, 90, 180, 270]
+    images = []
+
+    for flip in flip_list:
+        flip_img = flip_image(img, flip)
+
+        for rotation in rotation_list:
+            rotation_img = rotate_image(flip_img, rotation)
+
+            images.append(rotation_img)
+
+    return images
+
 def generate_dataset(path, output_path, dim = (128, 128), smooth = True, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
@@ -137,12 +163,17 @@ def generate_dataset(path, output_path, dim = (128, 128), smooth = True, save_im
                             cropNir = cv2.resize(cropNir, dim, interpolation=cv2.INTER_AREA)
                             cropMask = cv2.resize(cropMask, dim, interpolation=cv2.INTER_AREA)
 
-                            # Write image
-                            if save_images:
-                                #cv2.imwrite(output_path + 'RGB/' + imageName + '_' + str(id) + '.png', cropRgb)
-                                #cv2.imwrite(output_path + 'NIR/' + imageName + '_' + str(id) + '.png', cropNir)
-                                #cv2.imwrite(output_path + 'Mask/' + imageName + '_' + str(id) + '.png', cropMask)
-                                cv2.imwrite('../dataset/test/' + imageName + '_' + str(id) + '.png', cropMask)
+                            cropMask_ = augment_image(cropMask)
+
+                            for i in range(len(cropMask_)):
+                                cv2.imwrite('../dataset/test/' + imageName + '_' + str(id) + '_' + str(i) + '.png', cropMask_[i])
+
+                            # # Write image
+                            # if save_images:
+                            #     #cv2.imwrite(output_path + 'RGB/' + imageName + '_' + str(id) + '.png', cropRgb)
+                            #     #cv2.imwrite(output_path + 'NIR/' + imageName + '_' + str(id) + '.png', cropNir)
+                            #     #cv2.imwrite(output_path + 'Mask/' + imageName + '_' + str(id) + '.png', cropMask)
+                            #     cv2.imwrite('../dataset/test/' + imageName + '_' + str(id) + '.png', cropMask)
 
                             #yield cropRgb, cropNir, cropMask, imageName + '_' + str(id) + '.png'
 

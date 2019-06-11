@@ -9,22 +9,41 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 import os
 import cv2
+import tensorflow.contrib.gan as tfgan
+#from tensorflow_gan.eval import eval_utils
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
+
+# Just disables the warning
+import warnings
+import os
+warnings.filterwarnings('ignore')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import matplotlib
 matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 
+
 import sys
 
 import numpy as np
+import time
+
+
+def step(x):
+
+    if x < 0:
+        return -1
+    else:
+        return 1
 
 class DCGAN():
     def __init__(self):
         # Input shape
-        self.img_rows = 28
-        self.img_cols = 28
+        self.img_rows = 128
+        self.img_cols = 128
         self.channels = 1
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.latent_dim = 100
@@ -52,13 +71,14 @@ class DCGAN():
         # Trains the generator to fool the discriminator
         self.combined = Model(z, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+        self.session = tf.Session()
 
     def build_generator(self):
 
         model = Sequential()
 
-        model.add(Dense(128 * 7 * 7, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((7, 7, 128)))
+        model.add(Dense(128 * 32 * 32, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((32, 32, 128)))
         model.add(UpSampling2D())
         model.add(Conv2D(128, kernel_size=3, padding="same"))
         model.add(BatchNormalization(momentum=0.8))
@@ -167,16 +187,30 @@ class DCGAN():
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
             # If at save interval => save generated image samples
-            if epoch % save_interval == 0:
-                self.save_imgs(epoch)
+            if (epoch) % save_interval == 0:
 
-    def save_imgs(self, epoch):
+                # Select true images
+                idx = np.random.randint(0, X_train.shape[0], 100)
+                true = X_train[idx]
+                true = (0.5 * true + 0.5) * 255
+
+                # Select false images
+                noise = np.random.normal(0, 1, (100, self.latent_dim))
+                false = self.generator.predict(noise)
+                false = np.sign(false)
+                false = (0.5 * false + 0.5) * 255
+
+                self.save_imgs(epoch+1, false)
+
+                self.calculate_fid(true, false)
+
+    def save_imgs(self, epoch, gen_imgs):
         r, c = 5, 5
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        gen_imgs = self.generator.predict(noise)
-
-        # Rescale images 0 - 1
-        gen_imgs = 0.5 * gen_imgs + 0.5
+        # noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        # gen_imgs = self.generator.predict(noise)
+        #
+        # # Rescale images 0 - 1
+        # gen_imgs = 0.5 * gen_imgs + 0.5
 
         fig, axs = plt.subplots(r, c)
         cnt = 0
@@ -188,7 +222,32 @@ class DCGAN():
         fig.savefig("../dataset/generated/mask_%d.png" % epoch)
         plt.close()
 
+    def calculate_fid(self, true, false):
+
+        true = np.repeat(true, 3, 3)
+        false = np.repeat(false, 3, 3)
+
+        arg1 = tf.convert_to_tensor(true, dtype=tf.uint8)
+        arg2 = tf.convert_to_tensor(false, dtype=tf.uint8)
+
+        X_train1 = tfgan.eval.preprocess_image(arg1)
+        X_train2 = tfgan.eval.preprocess_image(arg2)
+
+        activations1 = tfgan.eval.run_inception(X_train1)
+        activations2 = tfgan.eval.run_inception(X_train2)
+
+        bla = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(activations1, activations2)
+
+        with tf.Session() as sess:
+            start = time.time()
+            actual_fid = sess.run(bla)
+            print("\nfid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+
+        return actual_fid
+
 
 if __name__ == '__main__':
     dcgan = DCGAN()
     dcgan.train(epochs=4000, batch_size=32, save_interval=50)
+
+    #dcgan.calculate_fid()
