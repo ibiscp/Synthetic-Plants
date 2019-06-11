@@ -10,7 +10,6 @@ from tensorflow.keras.optimizers import Adam
 import os
 import cv2
 import tensorflow.contrib.gan as tfgan
-#from tensorflow_gan.eval import eval_utils
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
@@ -31,13 +30,7 @@ import sys
 import numpy as np
 import time
 
-
-def step(x):
-
-    if x < 0:
-        return -1
-    else:
-        return 1
+import gc
 
 class DCGAN():
     def __init__(self):
@@ -71,7 +64,7 @@ class DCGAN():
         # Trains the generator to fool the discriminator
         self.combined = Model(z, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
-        self.session = tf.Session()
+        self.frechet = self.calculate_fid()
 
     def build_generator(self):
 
@@ -135,6 +128,57 @@ class DCGAN():
 
         return Model(img, validity)
 
+    def calculate_fid(self):
+
+        # Load the dataset
+        files = os.listdir('../dataset/test/')
+        number_files = len(files)
+        print('Number of files: ', number_files)
+
+        X_train = []
+        for file in files:
+            img = cv2.imread('../dataset/test/' + file, 0)
+            X_train.append(img)
+
+        X_train = np.asarray(X_train, dtype='uint8')
+
+        # Rescale -1 to 1
+        X_train = X_train / 127.5 - 1.
+        X_train = np.expand_dims(X_train, axis=3)
+
+        # Frechet distance
+        ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+        generated = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+
+        true_pre = tfgan.eval.preprocess_image(ground_truth)
+        generated_pre = tfgan.eval.preprocess_image(generated)
+
+        true_act = tfgan.eval.run_inception(true_pre)
+        generated_act = tfgan.eval.run_inception(generated_pre)
+
+        frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
+
+        with tf.Session() as sess:
+            for i in range(10):
+                # Select true images
+                idx = np.random.randint(0, X_train.shape[0], 100)
+                true = X_train[idx]
+                true = (0.5 * true + 0.5) * 255
+                true = np.repeat(true, 3, 3)
+
+                idx = np.random.randint(0, X_train.shape[0], 100)
+                false = X_train[idx]
+                false = (0.5 * false + 0.5) * 255
+                false = np.repeat(false, 3, 3)
+
+                start = time.time()
+                actual_fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
+                print("\nfid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+
+        gc.collect()
+
+        return 0
+
     def train(self, epochs, batch_size=128, save_interval=50):
 
         # Load the dataset
@@ -156,6 +200,19 @@ class DCGAN():
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
+
+
+        # Frechet distance
+        ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+        generated = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+
+        true_pre = tfgan.eval.preprocess_image(ground_truth)
+        generated_pre = tfgan.eval.preprocess_image(generated)
+
+        true_act = tfgan.eval.run_inception(true_pre)
+        generated_act = tfgan.eval.run_inception(generated_pre)
+
+        frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
 
         for epoch in range(epochs):
 
@@ -193,24 +250,29 @@ class DCGAN():
                 idx = np.random.randint(0, X_train.shape[0], 100)
                 true = X_train[idx]
                 true = (0.5 * true + 0.5) * 255
+                true = np.repeat(true, 3, 3)
 
                 # Select false images
                 noise = np.random.normal(0, 1, (100, self.latent_dim))
                 false = self.generator.predict(noise)
                 false = np.sign(false)
                 false = (0.5 * false + 0.5) * 255
+                false = np.repeat(false, 3, 3)
+
+                with tf.Session() as sess:
+                    start = time.time()
+                    actual_fid = sess.run(frechet, feed_dict={ground_truth:true, generated:false})
+                    print("\nfid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+
+                gc.collect()
+
 
                 self.save_imgs(epoch+1, false)
 
-                self.calculate_fid(true, false)
+                # self.calculate_fid(true, false)
 
     def save_imgs(self, epoch, gen_imgs):
         r, c = 5, 5
-        # noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        # gen_imgs = self.generator.predict(noise)
-        #
-        # # Rescale images 0 - 1
-        # gen_imgs = 0.5 * gen_imgs + 0.5
 
         fig, axs = plt.subplots(r, c)
         cnt = 0
@@ -221,29 +283,6 @@ class DCGAN():
                 cnt += 1
         fig.savefig("../dataset/generated/mask_%d.png" % epoch)
         plt.close()
-
-    def calculate_fid(self, true, false):
-
-        true = np.repeat(true, 3, 3)
-        false = np.repeat(false, 3, 3)
-
-        arg1 = tf.convert_to_tensor(true, dtype=tf.uint8)
-        arg2 = tf.convert_to_tensor(false, dtype=tf.uint8)
-
-        X_train1 = tfgan.eval.preprocess_image(arg1)
-        X_train2 = tfgan.eval.preprocess_image(arg2)
-
-        activations1 = tfgan.eval.run_inception(X_train1)
-        activations2 = tfgan.eval.run_inception(X_train2)
-
-        bla = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(activations1, activations2)
-
-        with tf.Session() as sess:
-            start = time.time()
-            actual_fid = sess.run(bla)
-            print("\nfid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
-
-        return actual_fid
 
 
 if __name__ == '__main__':
