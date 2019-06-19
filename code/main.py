@@ -22,6 +22,7 @@ import gc
 import glob
 import re
 from help import *
+import math
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
@@ -31,13 +32,14 @@ class GAN():
         self.directory = '../resources/' + name + '/'
         self.gif_dir = self.directory + 'gif/'
         self.model_dir = self.directory + 'model/'
-        self.summary = self.directory + 'summary'
+        self.summary = '../resources/summary/' + name
         self.latent_dim = latent_dim
         self.channels = channels
         self.img_shape = img_shape
         self.gif_matrix = 5
         self.gif_generator = np.random.normal(0, 1, (self.gif_matrix ** 2, self.latent_dim))
         self.epoch = 1
+        self.batch = 0
 
         # Create directories
         if not os.path.exists(self.directory):
@@ -214,7 +216,12 @@ class GAN():
             batch_ids = ids[batch:min(batch + batch_size, l)]
             yield self.data[batch_ids]
 
+
     def train(self, epochs=100, batch_size=128, save_every=5):
+
+        # Adversarial ground truths
+        valid = np.ones((batch_size, 1))
+        fake = np.zeros((batch_size, 1))
 
         # Frechet distance
         ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
@@ -228,50 +235,47 @@ class GAN():
 
         frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
 
-        # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
-        fake = np.zeros((batch_size, 1))
-
         # Summary
-        summary_writer = tf.summary.FileWriter(self.summary)
-        summary = tf.Summary()
-        batch = 0
+        summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
 
         for epoch in range(self.epoch, epochs + 1):
 
             self.epoch = epoch
 
-            generator = self.batch_generator(batch_size)
-
             print("\nEpoch %d" % epoch)
-            for _ in tqdm(range(0, self.data.shape[0], batch_size)):
+
+            batch_numbers = math.ceil(self.data.shape[0]/batch_size)
+
+            for real_images in self.batch_generator(batch_size):
+
+                start = time.time()
 
                 # Generate fake images
                 noise = np.random.normal(0, 1, [batch_size, 100])
                 generated_images = self.generator.predict(noise)
 
-                # Get real images
-                image_batch = next(generator)
-                l = image_batch.shape[0]
+                # Get real images size
+                l = real_images.shape[0]
 
-                # Batch of real and fake images
-                X = np.concatenate([image_batch[0:l], generated_images[0:l]])
-                y = np.concatenate([valid[0:l], fake[0:l]])
-
-                # Train discriminator
-                self.discriminator.trainable = True
-                d_loss = self.discriminator.train_on_batch(X, y)
+                # Train the Discriminator
+                # self.discriminator.trainable = True
+                d_loss_real = self.discriminator.train_on_batch(real_images[0:l], valid[0:l])
+                d_loss_fake = self.discriminator.train_on_batch(generated_images[0:l], fake[0:l])
+                d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
                 # Train Generator
-                self.discriminator.trainable = False
-                #noise = np.random.normal(0, 1, [batch_size, 100])
+                # self.discriminator.trainable = False
+                # noise = np.random.normal(0, 1, [batch_size, 100])
                 g_loss = self.gan.train_on_batch(noise, valid)
 
                 # Save batch summary
+                summary = tf.Summary()
                 summary.value.add(tag="d_loss", simple_value=d_loss)
                 summary.value.add(tag="g_loss", simple_value=g_loss)
-                summary_writer.add_summary(summary, global_step=batch)
-                batch += 1
+                summary_writer.add_summary(summary, global_step=self.batch)
+                self.batch += 1
+
+                print("\tBatch %d/%d - time: %.2f seconds" % (self.batch % batch_numbers, batch_numbers, time.time() - start))
 
             self.plot_gif(epoch)
 
@@ -292,8 +296,9 @@ class GAN():
                 # Run evaluation
                 with tf.Session() as sess:
                     start = time.time()
-                    actual_fid = sess.run(frechet, feed_dict={ground_truth:true, generated:false})
-                    print("Fid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+                    actual_fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
+                    print("\tFid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+                    summary = tf.Summary()
                     summary.value.add(tag="fid", simple_value=actual_fid)
                     summary_writer.add_summary(summary, global_step=epoch)
 
@@ -304,90 +309,7 @@ class GAN():
                 self.discriminator.save(self.model_dir + 'discriminator_' + str(epoch) + '.h5')
                 self.save_checkpoint()
 
-    def train2(self, epochs, batch_size=128, save_interval=50):
-
-        X_train = self.data
-
-        # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
-        fake = np.zeros((batch_size, 1))
-
-        # Frechet distance
-        ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
-        generated = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
-
-        true_pre = tfgan.eval.preprocess_image(ground_truth)
-        generated_pre = tfgan.eval.preprocess_image(generated)
-
-        true_act = tfgan.eval.run_inception(true_pre)
-        generated_act = tfgan.eval.run_inception(generated_pre)
-
-        frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
-
-        for epoch in range(self.epoch, epochs):
-
-            self.epoch = epoch
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            start = time.time()
-
-            # Select a random half of images
-            idx = np.random.randint(0, X_train.shape[0], batch_size)
-            imgs = X_train[idx]
-
-            # Sample noise and generate a batch of new images
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-            gen_imgs = self.generator.predict(noise)
-
-            # Train the discriminator (real classified as ones and generated as zeros)
-            d_loss_real = self.discriminator.train_on_batch(imgs, valid)
-            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
-            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-
-            # ---------------------
-            #  Train Generator
-            # ---------------------
-
-            # Train the generator (wants discriminator to mistake images as real)
-            g_loss = self.gan.train_on_batch(noise, valid)
-
-            # Plot the progress
-            print("%d [D loss: %f] [G loss: %f] %f" % (epoch, d_loss, g_loss, time.time() - start))
-
-            self.plot_gif(epoch)
-
-            # If at save interval => save generated image samples
-            if epoch % save_interval == 0:
-
-                # Select true images
-                idx = np.random.randint(0, X_train.shape[0], 100)
-                true = X_train[idx]
-                true = (0.5 * true + 0.5) * 255
-                true = np.repeat(true, 3, 3)
-
-                # Select false images
-                noise = np.random.normal(0, 1, (100, self.latent_dim))
-                false = self.generator.predict(noise)
-                false = np.sign(false)
-                false = (0.5 * false + 0.5) * 255
-                false = np.repeat(false, 3, 3)
-
-                with tf.Session() as sess:
-                    start = time.time()
-                    actual_fid = sess.run(frechet, feed_dict={ground_truth:true, generated:false})
-                    print("\nfid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
-
-                gc.collect()
-
-                # Save model
-                self.generator.save('../resources/generator_' + str(epoch) + '.h5')
-                self.discriminator.save('../resources/discriminator_' + str(epoch) + '.h5')
-
-
-ibis = GAN('test1')
+ibis = GAN('train3')
 ibis.train(epochs=100, batch_size=64)
 #ibis.train2(epochs=4000, batch_size=32, save_interval=50)
 #ibis.create_gif()
