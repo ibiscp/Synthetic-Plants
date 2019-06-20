@@ -46,7 +46,7 @@ class GAN():
         self.gif_generator = np.random.normal(0, 1, (self.gif_matrix ** 2, self.latent_dim))
 
         # Training parameters
-        self.epoch = 1
+        self.epoch = 0
         self.batch = 0
         self.wallclocktime = 0
 
@@ -207,7 +207,7 @@ class GAN():
         # Summary
         summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
 
-        for epoch in range(self.epoch, epochs + 1):
+        for epoch in range(self.epoch, epochs):
 
             self.epoch = epoch
 
@@ -228,10 +228,12 @@ class GAN():
 
                 # Train the Discriminator
                 # self.discriminator.trainable = True
-                d_loss_real = self.discriminator.train_on_batch(real_images[0:l], valid[0:l])
-                d_loss_fake = self.discriminator.train_on_batch(generated_images[0:l], fake[0:l])
-                d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+                d_loss_real, d_acc_real = self.discriminator.train_on_batch(real_images[0:l], valid[0:l])
+                d_loss_fake, d_acc_fake = self.discriminator.train_on_batch(generated_images[0:l], fake[0:l])
+                d_loss = 0.5 * (d_loss_real + d_loss_fake)
+                d_acc = 0.5 * (d_acc_real + d_acc_fake)
 
+                # TODO train generator before discriminator and get accuracy
                 # Train Generator
                 # self.discriminator.trainable = False
                 # noise = np.random.normal(0, 1, [batch_size, 100])
@@ -244,14 +246,21 @@ class GAN():
                 summary = tf.Summary()
                 summary.value.add(tag="d_loss", simple_value=d_loss)
                 summary.value.add(tag="g_loss", simple_value=g_loss)
+                summary.value.add(tag="d_acc", simple_value=d_acc)
+                summary.value.add(tag="g_acc", simple_value=1-d_acc)
                 summary_writer.add_summary(summary, global_step=self.batch)
                 self.batch += 1
 
                 print("\tBatch %d/%d - time: %.2f seconds" % (self.batch % batch_numbers, batch_numbers, time.time() - start))
 
+            # Save epoch summary
+            summary = tf.Summary()
+            summary.value.add(tag="wallclocktime", simple_value=self.wallclocktime)
+            summary_writer.add_summary(summary, global_step=self.epoch)
+
             self.plot_gif(epoch)
 
-            if epoch == 1 or epoch % save_every == 0:
+            if epoch == 0 or epoch+1 % save_every == 0:
                 # Select true images
                 idx = np.random.randint(0, self.data.shape[0], 100)
                 true = self.data[idx]
@@ -268,11 +277,13 @@ class GAN():
                 # Run evaluation
                 with tf.Session() as sess:
                     start = time.time()
-                    actual_fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
-                    print("\tFid: %.2f,\t time: %.2f seconds" % (actual_fid, time.time() - start))
+                    fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
+                    print("\tFid: %.2f,\t time: %.2f seconds" % (fid, time.time() - start))
+
+                    # Save evaluation summary
                     summary = tf.Summary()
-                    summary.value.add(tag="fid", simple_value=actual_fid)
-                    summary_writer.add_summary(summary, global_step=epoch)
+                    summary.value.add(tag="fid", simple_value=fid)
+                    summary_writer.add_summary(summary, global_step=self.epoch)
 
                 gc.collect()
 
