@@ -80,7 +80,7 @@ class DCGAN():
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
-        model.compile(loss='binary_crossentropy', optimizer=Adam(self.d_lr, self.d_beta_1))
+        model.compile(loss='binary_crossentropy', optimizer=Adam(self.d_lr, self.d_beta_1), metrics=['accuracy'])
 
         return model
 
