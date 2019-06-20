@@ -1,21 +1,15 @@
-from __future__ import print_function, division
+# Import GANs
+from dcgan import DCGAN
 
+# Other libraries
 import os
 import numpy as np
 import cv2
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
-from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
-from tensorflow.keras.layers import LeakyReLU
-from tensorflow.keras.layers import UpSampling2D, Conv2D
-from tensorflow.keras.models import Sequential, Model, load_model
-from tensorflow.keras.optimizers import Adam
 import matplotlib
 matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import imageio
-from tqdm import tqdm
 import tensorflow.contrib.gan as tfgan
 import time
 import gc
@@ -27,19 +21,34 @@ import math
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 class GAN():
-    def __init__(self, name, latent_dim=100, channels=1, img_shape=(128, 128, 1)):
-        self.name = name
+    def __init__(self, name, architecture, latent_dim=100, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5,
+                 d_lr=0.0002, d_beta_1=0.5):
+        # Names
+        self.name = name # TODO change name based on parameters
+        self.architecture = architecture
+
+        # Parameters
+        self.img_shape = img_shape
+        self.latent_dim = latent_dim
+        self.g_lr = g_lr
+        self.d_lr = d_lr
+        self.g_beta_1 = g_beta_1
+        self.d_beta_1 = d_beta_1
+
+        # Directories
         self.directory = '../resources/' + name + '/'
         self.gif_dir = self.directory + 'gif/'
         self.model_dir = self.directory + 'model/'
         self.summary = '../resources/summary/' + name
-        self.latent_dim = latent_dim
-        self.channels = channels
-        self.img_shape = img_shape
+
+        # Gif
         self.gif_matrix = 5
         self.gif_generator = np.random.normal(0, 1, (self.gif_matrix ** 2, self.latent_dim))
+
+        # Training parameters
         self.epoch = 1
         self.batch = 0
+        self.wallclocktime = 0
 
         # Create directories
         if not os.path.exists(self.directory):
@@ -50,15 +59,38 @@ class GAN():
         # Load data
         self.data = self.load_data()
 
-        # Get all the models saved
-        files = glob.glob(self.model_dir + '*.h5')
-
-        # Load the seed for plotting
+        # Load the seed for the gif
         if not os.path.isfile(self.directory + '../' + 'seed.pkl'):
             save(self.gif_generator, self.directory + '../' + 'seed.pkl')
         else:
             self.gif_generator = load(self.directory + '../' + 'seed.pkl')
 
+        # Load the correct gan
+        self.load_gan()
+
+        print('\n\nGenerator')
+        self.generator.summary()
+
+        print('\n\nDiscriminator')
+        self.discriminator.summary()
+
+        print('\n\nGAN')
+        self.combined.summary()
+
+    def load_gan(self):
+
+        if self.architecture == 'dcgan':
+            gan = DCGAN(latent_dim=self.latent_dim, img_shape=self.img_shape, g_lr=self.g_lr, g_beta_1=self.g_beta_1,
+                        d_lr=self.d_lr, d_beta_1=self.d_beta_1)
+            self.generator = gan.generator()
+            self.discriminator = gan.discriminator()
+            self.combined = gan.gan()
+
+
+        # Get all the models saved
+        files = glob.glob(self.model_dir + '*.h5')
+
+        # Load Checkpoint if found
         if files:
             versions = []
             regex = re.compile(r'\d+')
@@ -72,33 +104,36 @@ class GAN():
 
             self.load_checkpoint()
 
-        else:
-            # Build generator
-            self.generator = self.generator()
-
-            # Build discriminator
-            self.discriminator = self.discriminator()
-
-        print('\n\nGenerator')
-        self.generator.summary()
-
-        print('\n\nDiscriminator')
-        self.discriminator.summary()
-
-        # Create GAN
-        self.gan = self.create_gan()
-        print('\n\nGAN')
-        self.gan.summary()
-
     def save_checkpoint(self):
 
-        data = [self.gif_generator, self.epoch] # TODO add loss, optimizer and other stuff
+        data = {}
+        data['architecture'] = self.architecture
+        data['img_shape'] = self.img_shape
+        data['latent_dim'] = self.latent_dim
+        data['g_lr'] = self.g_lr
+        data['d_lr'] = self.d_lr
+        data['g_beta_1'] = self.g_beta_1
+        data['d_beta_1'] = self.d_beta_1
+        data['epoch'] = self.epoch
+        data['batch'] = self.batch
+        data['wallclocktime'] = self.wallclocktime
 
         save(data, self.directory + 'checkpoint.pkl')
 
     def load_checkpoint(self):
 
-        self.gif_generator, self.epoch = load(self.directory + 'checkpoint.pkl')
+        data = load(self.directory + 'checkpoint.pkl')
+
+        self.architecture = data['architecture']
+        self.img_shape = data['img_shape']
+        self.latent_dim = data['latent_dim']
+        self.g_lr = data['g_lr']
+        self.d_lr = data['d_lr']
+        self.g_beta_1 = data['g_beta_1']
+        self.d_beta_1 = data['d_beta_1']
+        self.epoch = data['epoch']
+        self.batch = data['batch']
+        self.wallclocktime = data['wallclocktime']
 
     def load_data(self):
         # Load the dataset
@@ -118,72 +153,6 @@ class GAN():
         X_train = np.expand_dims(X_train, axis=3)
 
         return X_train
-
-    def generator(self):
-
-        model = Sequential()
-
-        model.add(Dense(128 * 32 * 32, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((32, 32, 128)))
-        model.add(UpSampling2D())
-        model.add(Conv2D(128, kernel_size=3, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Activation("relu"))
-
-        model.add(UpSampling2D())
-        model.add(Conv2D(64, kernel_size=3, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Activation("relu"))
-
-        model.add(Conv2D(self.channels, kernel_size=3, padding="same"))
-        model.add(Activation("tanh"))
-
-        return model
-
-    def discriminator(self):
-
-        model = Sequential()
-
-        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-
-        model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
-        model.add(ZeroPadding2D(padding=((0,1),(0,1))))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-
-        model.add(Conv2D(128, kernel_size=3, strides=2, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-
-        model.add(Conv2D(256, kernel_size=3, strides=1, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-
-        model.add(Flatten())
-        model.add(Dense(1, activation='sigmoid'))
-
-        model.compile(loss='binary_crossentropy', optimizer=Adam(0.0002, 0.5))
-
-        return model
-
-    def create_gan(self):
-
-        self.discriminator.trainable = False
-
-        # Input and Output of GAN
-        gan_input = Input(shape=(100,))
-        gan_output = self.discriminator(self.generator(gan_input))
-
-        gan = Model(inputs=gan_input, outputs=gan_output)
-
-        gan.compile(loss='binary_crossentropy', optimizer=Adam(0.0002, 0.5))
-
-        return gan
 
     def plot_gif(self, epoch):
 
@@ -266,7 +235,10 @@ class GAN():
                 # Train Generator
                 # self.discriminator.trainable = False
                 # noise = np.random.normal(0, 1, [batch_size, 100])
-                g_loss = self.gan.train_on_batch(noise, valid)
+                g_loss = self.combined.train_on_batch(noise, valid)
+
+                # Save iteration time
+                self.wallclocktime += time.time() - start
 
                 # Save batch summary
                 summary = tf.Summary()
@@ -309,9 +281,6 @@ class GAN():
                 self.discriminator.save(self.model_dir + 'discriminator_' + str(epoch) + '.h5')
                 self.save_checkpoint()
 
-ibis = GAN('train3')
+ibis = GAN('train3', 'dcgan')
 ibis.train(epochs=100, batch_size=64)
-#ibis.train2(epochs=4000, batch_size=32, save_interval=50)
-#ibis.create_gif()
 
-#ibis.save_checkpoint()
