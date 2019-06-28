@@ -9,29 +9,17 @@ from tensorflow.keras.layers import Input
 import cv2
 import ot
 from scipy import linalg
+import time
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-def load_data():
-    # Load the dataset
-    files = os.listdir('../dataset/test/')
-    number_files = len(files)
-    print('Number of files: ', number_files)
-
-    X_train = []
-    for file in files[0:10]:
-        img = cv2.imread('../dataset/test/' + file, 0)
-        img = cv2.resize(img, (299, 299))
-        X_train.append(img)
-
-    X_train = np.asarray(X_train, dtype='uint8')
-
-    # Rescale
-    X_train = X_train / 127.5 - 1.
-    X_train = np.expand_dims(X_train, axis=3)
-    X_train = np.repeat(X_train, 3, 3)
-
-    return X_train
+class Score:
+    emd = None
+    mmd = None
+    knn = None
+    inception = None
+    mode = None
+    fid = None
 
 class Score_knn:
     acc = 0
@@ -130,14 +118,14 @@ class Metrics(object):
         kl = X * (np.log(X + eps) - np.repeat(np.log(np.mean(X, axis=0) + eps).reshape((1, -1)), X.shape[0], axis=0))
         score = np.exp(np.mean(np.sum(kl, axis=1)))
 
-        return score
+        return float(score)
 
     def mode_score(self, X, Y, eps=1e-20):
         kl1 = X * (np.log(X + eps) - np.repeat(np.log(np.mean(X, axis=0) + eps).reshape((1, -1)), X.shape[0], axis=0))
         kl2 = np.mean(X, axis=0) * (np.log(np.mean(X, axis=0) + eps) - np.log(np.mean(Y, axis=0) + eps))
         score = np.exp(np.mean(np.sum(kl1, axis=1)) - np.sum(kl2))
 
-        return score
+        return float(score)
 
     def fid(self, X, Y):
         m = np.mean(X, axis=0)
@@ -151,39 +139,54 @@ class Metrics(object):
                 np.trace(C + C_w - 2 * C_C_w_sqrt)
         return np.sqrt(score)
 
-    def compute_score(self, real, fake):
+    def compute_score(self, real, fake, k=1, sigma=1, sqrt=True):
 
-        np.random.seed(0)
+        # np.random.seed(0)
+        # feature_r = [np.random.rand(5, 299, 299, 3), np.random.rand(5, 8, 8, 2048), np.random.rand(5, 2048), np.random.rand(5, 1000)]
+        # feature_f = [np.random.rand(5, 299, 299, 3), np.random.rand(5, 8, 8, 2048), np.random.rand(5, 2048), np.random.rand(5, 1000)]
+
+        start = time.time()
 
         # Features
         feature_r = self.calculate_features(real)
         feature_f = self.calculate_features(fake)
-        # feature_r = [np.random.rand(5, 299, 299, 3), np.random.rand(5, 8, 8, 2048), np.random.rand(5, 2048), np.random.rand(5, 1000)]
-        # feature_f = [np.random.rand(5, 299, 299, 3), np.random.rand(5, 8, 8, 2048), np.random.rand(5, 2048), np.random.rand(5, 1000)]
 
-        # 4 feature spaces and 7 scores + incep + modescore + fid
-        score = np.zeros(4 * 7 + 3)
-        for i in range(0, 4):
-            print('compute score in space: ' + str(i))
-            Mxx = self.distance(feature_r[i], feature_r[i], False)
-            Mxy = self.distance(feature_r[i], feature_f[i], False)
-            Myy = self.distance(feature_f[i], feature_f[i], False)
+        # Calculate distance
+        Mxx = self.distance(feature_r[1], feature_r[1], False)
+        Mxy = self.distance(feature_r[1], feature_f[1], False)
+        Myy = self.distance(feature_f[1], feature_f[1], False)
 
-            score[i * 7] = self.wasserstein(Mxy, True)
-            score[i * 7 + 1] = self.mmd(Mxx, Mxy, Myy, 1)
-            tmp = self.knn(Mxx, Mxy, Myy, 1, False)
-            score[(i * 7 + 2):(i * 7 + 7)] = \
-                tmp.acc, tmp.acc_real, tmp.acc_fake, tmp.precision, tmp.recall
+        s = Score()
+        s.emd = self.wasserstein(Mxy, sqrt)
+        s.mmd = self.mmd(Mxx, Mxy, Myy, sigma)
+        s.knn = self.knn(Mxx, Mxy, Myy, k, sqrt).acc
+        s.inception = self.inception_score(feature_f[3])
+        s.mode = self.mode_score(feature_r[3], feature_f[3])
+        s.fid = self.fid(feature_r[3], feature_f[3])
 
-        score[28] = self.inception_score(feature_f[3])
-        score[29] = self.mode_score(feature_r[3], feature_f[3])
-        score[30] = self.fid(feature_r[3], feature_f[3])
+        print('Time', time.time() - start)
 
-        print(score)
+        # # 4 feature spaces and 7 scores + incep + modescore + fid
+        # score = np.zeros(4 * 7 + 3)
+        # for i in range(0, 4):
+        #     print('compute score in space: ' + str(i))
+        #     Mxx = self.distance(feature_r[i], feature_r[i], False)
+        #     Mxy = self.distance(feature_r[i], feature_f[i], False)
+        #     Myy = self.distance(feature_f[i], feature_f[i], False)
+        #
+        #     score[i * 7] = self.wasserstein(Mxy, True)
+        #     score[i * 7 + 1] = self.mmd(Mxx, Mxy, Myy, 1)
+        #     tmp = self.knn(Mxx, Mxy, Myy, 1, False)
+        #     score[(i * 7 + 2):(i * 7 + 7)] = \
+        #         tmp.acc, tmp.acc_real, tmp.acc_fake, tmp.precision, tmp.recall
+        #
+        # score[28] = self.inception_score(feature_f[3])
+        # score[29] = self.mode_score(feature_r[3], feature_f[3])
+        # score[30] = self.fid(feature_r[3], feature_f[3])
 
-        return score
+        return s
 
-images = load_data()
-
-ibis = Metrics()
-score = ibis.compute_score(images[0:5],images[5:10])
+# images = load_data(repeat = true)
+#
+# ibis = Metrics()
+# score = ibis.compute_score(images[0:5],images[5:10])

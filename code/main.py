@@ -18,6 +18,7 @@ import glob
 import re
 from help import *
 import math
+from pytorchMetrics import *
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
@@ -51,7 +52,7 @@ class GAN():
 
         # Training parameters
         self.epoch = 0
-        self.batch = 1
+        self.batch = 0
         self.wallclocktime = 0
 
         # Create directories
@@ -61,7 +62,7 @@ class GAN():
             os.makedirs(self.model_dir)
 
         # Load data
-        self.data = self.load_data()
+        self.data = load_data()
 
         # Load the seed for the gif
         if not os.path.isfile(self.directory + '../' + 'seed.pkl'):
@@ -139,25 +140,6 @@ class GAN():
         self.batch = data['batch']
         self.wallclocktime = data['wallclocktime']
 
-    def load_data(self):
-        # Load the dataset
-        files = os.listdir('../dataset/test/')
-        number_files = len(files)
-        print('Number of files: ', number_files)
-
-        X_train = []
-        for file in files:
-            img = cv2.imread('../dataset/test/' + file, 0)
-            X_train.append(img)
-
-        X_train = np.asarray(X_train, dtype='uint8')
-
-        # Rescale
-        X_train = X_train / 127.5 - 1.
-        X_train = np.expand_dims(X_train, axis=3)
-
-        return X_train
-
     def plot_gif(self, epoch):
 
         gen_imgs = self.generator.predict(self.gif_generator)
@@ -197,16 +179,18 @@ class GAN():
         fake = np.zeros((batch_size, 1))
 
         # Frechet distance
-        ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
-        generated = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+        # ground_truth = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+        # generated = tf.placeholder(tf.uint8, shape=[None, 128, 128, 3])
+        #
+        # true_pre = tfgan.eval.preprocess_image(ground_truth)
+        # generated_pre = tfgan.eval.preprocess_image(generated)
+        #
+        # true_act = tfgan.eval.run_inception(true_pre)
+        # generated_act = tfgan.eval.run_inception(generated_pre)
+        #
+        # frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
 
-        true_pre = tfgan.eval.preprocess_image(ground_truth)
-        generated_pre = tfgan.eval.preprocess_image(generated)
-
-        true_act = tfgan.eval.run_inception(true_pre)
-        generated_act = tfgan.eval.run_inception(generated_pre)
-
-        frechet = tfgan.eval.mean_only_frechet_classifier_distance_from_activations(true_act, generated_act)
+        metrics = pytorchMetrics()
 
         # Summary
         summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
@@ -215,7 +199,7 @@ class GAN():
 
             self.epoch = epoch
 
-            print("\nEpoch %d" % epoch)
+            print("\n\tEpoch %d" % epoch)
 
             batch_numbers = math.ceil(self.data.shape[0]/batch_size)
 
@@ -230,11 +214,6 @@ class GAN():
                 # Get real images size
                 l = real_images.shape[0]
 
-                # Train Generator
-                # self.discriminator.trainable = False
-                # noise = np.random.normal(0, 1, [batch_size, 100])
-                g_loss = self.combined.train_on_batch(noise, valid)
-
                 # Train the Discriminator
                 # self.discriminator.trainable = True
                 d_loss_real, d_acc_real = self.discriminator.train_on_batch(real_images[0:l], valid[0:l])
@@ -243,7 +222,10 @@ class GAN():
                 d_acc = 0.5 * (d_acc_real + d_acc_fake)
 
                 # TODO train generator before discriminator and get accuracy
-
+                # Train Generator
+                # self.discriminator.trainable = False
+                # noise = np.random.normal(0, 1, [batch_size, 100])
+                g_loss = self.combined.train_on_batch(noise, valid)
 
                 # Save iteration time
                 self.wallclocktime += time.time() - start
@@ -255,9 +237,9 @@ class GAN():
                 summary.value.add(tag="d_acc", simple_value=d_acc)
                 summary.value.add(tag="g_acc", simple_value=1-d_acc)
                 summary_writer.add_summary(summary, global_step=self.batch)
-                self.batch += 1
 
-                print("\tBatch %d/%d - time: %.2f seconds" % (self.batch % (batch_numbers+1), batch_numbers, time.time() - start))
+                print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
+                self.batch += 1
 
             # Save epoch summary
             summary = tf.Summary()
@@ -282,17 +264,29 @@ class GAN():
             false = np.repeat(false, 3, 3)
 
             # Run evaluation
-            with tf.Session() as sess:
-                start = time.time()
-                fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
-                print("\tFid: %.2f - time: %.2f seconds" % (fid, time.time() - start))
+            # with tf.Session() as sess:
+            #     start = time.time()
+            #     fid = sess.run(frechet, feed_dict={ground_truth: true, generated: false})
+            #     print("\t\tFid: %.2f - time: %.2f seconds" % (fid, time.time() - start))
+            #
+            #     # Save evaluation summary
+            #     summary = tf.Summary()
+            #     summary.value.add(tag="fid", simple_value=fid)
+            #     summary_writer.add_summary(summary, global_step=self.epoch)
+            #
+            # gc.collect()
 
-                # Save evaluation summary
-                summary = tf.Summary()
-                summary.value.add(tag="fid", simple_value=fid)
-                summary_writer.add_summary(summary, global_step=self.epoch)
+            score = metrics.compute_score(true, false)
 
-            gc.collect()
+            # Save evaluation summary
+            summary = tf.Summary()
+            summary.value.add(tag="emd", simple_value=score.emd)
+            summary.value.add(tag="fid", simple_value=score.fid)
+            summary.value.add(tag="inception", simple_value=score.inception)
+            summary.value.add(tag="knn", simple_value=score.knn)
+            summary.value.add(tag="mmd", simple_value=score.mmd)
+            summary.value.add(tag="mode", simple_value=score.mode)
+            summary_writer.add_summary(summary, global_step=self.epoch)
 
             # Save model
             self.generator.save(self.model_dir + 'generator_' + str(epoch) + '.h5')

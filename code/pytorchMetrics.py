@@ -2,7 +2,6 @@ import math
 import os
 import timeit
 import math
-
 import numpy as np
 import ot
 import torch
@@ -13,8 +12,6 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import torchvision.models as models
 from scipy import linalg
-import cv2
-import time
 
 
 class Score_knn:
@@ -35,29 +32,6 @@ class Score:
     inception = None
     mode = None
     fid = None
-
-def load_data(folder_name):
-    # Load the dataset
-    # files = os.listdir('../dataset/test/')
-    files = os.listdir(folder_name + '0/')
-    number_files = len(files)
-    # print('Number of files: ', number_files)
-
-    X_train = []
-    for file in files[0:10]:
-        img = cv2.imread('../dataset/test/' + file, 0)
-        img = cv2.resize(img, (299, 299))
-        X_train.append(img)
-
-    X_train = np.asarray(X_train, dtype='uint8')
-
-    # Rescale
-    X_train = X_train / 127.5 - 1.
-    X_train = np.expand_dims(X_train, axis=3)
-    X_train = np.repeat(X_train, 3, 3)
-
-    return X_train
-
 
 class pytorchMetrics(object):
     def __init__(self, model='inception_v3'):
@@ -356,7 +330,7 @@ class pytorchMetrics(object):
 #
 #
 # # Load images
-# x_real = load_data('real/')
-# x_fake = load_data('fake/')
+# x_real = load_data('real/', repeat = true)
+# x_fake = load_data('fake/', repeat = true)
 # score = metrics.compute_score(x_real, x_fake)
 # print(score)
