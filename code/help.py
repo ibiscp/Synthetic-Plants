@@ -85,4 +85,4 @@ def calculate_gold_metrics():
 
 
 
-calculate_gold_metrics()
+# calculate_gold_metrics()
