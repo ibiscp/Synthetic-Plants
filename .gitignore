@@ -6,3 +6,6 @@ __pycache__
 dataset
 resources
 *.gz
+
+# Include specific files
+!resources/seed.pkl
