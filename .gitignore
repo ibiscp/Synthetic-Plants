@@ -3,9 +3,16 @@
 .idea/
 __pycache__
 
+# Folders
 dataset
 resources
+
+# Files
 *.gz
+data.py
+gridSearch.py
+test.py
+wgangpTest.py
 
 # Include specific files
 !resources/seed.pkl
