@@ -4,9 +4,19 @@ import imageio
 import os
 import cv2
 import numpy as np
-import random
+# import random
 from pytorchMetrics import *
-
+import matplotlib
+# ['GTK3Agg', 'GTK3Cairo', 'MacOSX', 'nbAgg', 'Qt4Agg', 'Qt4Cairo', 'Qt5Agg', 'Qt5Cairo', 'TkAgg', 'TkCairo', 'WebAgg',
+ # 'WX', 'WXAgg', 'WXCairo', 'agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template']
+matplotlib.use("WebAgg")
+matplotlib.rcParams['savefig.pad_inches'] = 0
+import matplotlib.pyplot as plt
+# import matplotlib.gridspec as gridspec
+# from matplotlib.backends.backend_agg import FigureCanvas
+# from matplotlib.figure import Figure
+import matplotlib.image as mpimg
+from PIL import Image
 
 # Save dictionary to file
 def save(obj, name):
@@ -19,20 +29,106 @@ def load(name):
         return pickle.load(f)
 
 # Create the gif given the dictionary and its size
-def create_gif(directory, size=100):
+def create_gif(directory, duration=10):
     files = glob.glob(directory + 'gif/' + '*.png')
     files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+    frames = []
     images = []
 
-    number = int(len(files)/size)
+    # Get gif images
+    for f in files:
+        img = cv2.imread(f, 1)
+        img = cv2.resize(img, (400, 400))
+        images.append(img)
 
-    for i in range(size):
-        images.append(imageio.imread(files[int(i*number)]))
+    # Construct graph
+    graphs = generate_graphs(directory)
 
-    for i in range(int(size*.2)):
-        images.append(imageio.imread(files[-1]))
+    # new_im = Image.new('RGB', (total_width, max_height))
+    for i, image in enumerate(images):
+        graph = graphs[i]
+        graph = graph[3:3 + 400, 5:5 + 400]
+        new_im = np.hstack((image, graph))
+        frames.append(new_im)
 
-    imageio.mimsave(directory + 'training.gif', images)
+    # Repeat last frames
+    for i in range(int(len(files)*.5)):
+        frames.append(frames[-1])
+
+    # Calculate time between frames
+    time = duration/len(frames)
+
+    # Create gif
+    imageio.mimsave(directory + 'training.gif', frames, format='GIF', duration=time)
+
+def generate_graphs(directory):
+
+    # Load metrics
+    metrics = load(directory + 'checkpoint.pkl')
+    metrics = metrics['metrics']
+
+    # List of metrics
+    names = ['emd', 'fid', 'inception', 'knn', 'mmd', 'mode']
+
+    emd = []
+    fid = []
+    inception = []
+    knn = []
+    mmd = []
+    mode = []
+    for m in metrics:
+        emd.append(m.emd)
+        fid.append(m.fid)
+        inception.append(m.inception)
+        knn.append(m.knn)
+        mmd.append(m.mmd)
+        mode.append(m.mode)
+
+    metrics = [emd, fid, inception, knn, mmd, mode]
+    num_metrics = len(metrics)
+    epochs = len(emd)
+
+    frames = []
+
+    # Calculate gold metrics
+    gold_metrics = calculate_gold_metrics()
+
+    # Graph size
+    width = 420
+    height = 420
+    dpi = 100
+
+    for epoch in range(epochs):
+
+        fig, ax = plt.subplots(num_metrics, figsize=(width/dpi, height/dpi), dpi=dpi)
+        fig.suptitle('Epoch: ' + str(epoch+1), x=0.11, y=.96, horizontalalignment='left', verticalalignment='top', fontsize=14)
+        # fig.patch.set_visible(False)
+        # fig.axes([0,0,1,1], frameon=False)
+        # fig = plt.figure(figsize=(width/dpi, height/dpi), dpi=dpi, frameon=False, tight_layout=True)
+
+        for i in range(num_metrics):
+            horizontal = getattr(gold_metrics, names[i])
+            max_ = max(max(metrics[i]), horizontal)
+            min_ = min(min(metrics[i]), horizontal)
+            offset = (max_ - min_) * 0.1
+
+            # ax = fig.add_subplot(num_metrics, 1, i + 1)
+            ax[i].axhline(y=horizontal, color='r', linestyle=':')
+            ax[i].set_xlim([0, epochs])
+            ax[i].set_ylim([min_ - offset, max_ + offset])
+            ax[i].set_ylabel(names[i])
+            ax[i].yaxis.set_label_position("right")
+            ax[i].plot(metrics[i][:epoch])
+
+            if i != num_metrics-1:
+                ax[i].axes.get_xaxis().set_visible(False)
+
+        fig.canvas.draw()
+        image = np.fromstring(fig.canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
+        frames.append(image)
+
+        plt.close(fig)
+    return frames
 
 def load_data(path='../dataset/test/', repeat = False):
     # Load the dataset
@@ -86,3 +182,5 @@ def calculate_gold_metrics():
 
 
 # calculate_gold_metrics()
+# generate_graphs('../resources/wgangp/')
+create_gif('../resources/wgangp/')
