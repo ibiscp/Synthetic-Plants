@@ -1,4 +1,3 @@
-from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -7,26 +6,20 @@ from tensorflow.keras.layers import UpSampling2D, Conv2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import RMSprop
 from functools import partial
-
 import tensorflow.keras.backend as K
-
-
-import matplotlib
-matplotlib.use("TKAgg")
-import matplotlib.pyplot as plt
-
-import sys
-
 import numpy as np
+from tensorflow.keras.models import load_model
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 
 class RandomWeightedAverage(Add):
     """Provides a (random) weighted average between real and generated image samples"""
     def _merge_function(self, inputs):
         alpha = K.random_uniform((64, 1, 1, 1))
         return (alpha * inputs[0]) + ((1 - alpha) * inputs[1])
+
 
 class WGANGP():
     def __init__(self, batch_size=64, latent_dim=100, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5, d_lr=0.0002, d_beta_1=0.5):
@@ -47,7 +40,7 @@ class WGANGP():
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
         self.generator = self.generator()
-        self.discriminator = self.discriminator()
+        self.critic = self.critic()
         self.critic_model, self.generator_model = self.gan()
 
     def gradient_penalty_loss(self, y_true, y_pred, averaged_samples):
@@ -97,7 +90,7 @@ class WGANGP():
 
         return Model(noise, img)
 
-    def discriminator(self):
+    def critic(self):
 
         model = Sequential()
 
@@ -149,13 +142,13 @@ class WGANGP():
         fake_img = self.generator(z_disc)
 
         # Discriminator determines validity of the real and fake images
-        fake = self.discriminator(fake_img)
-        valid = self.discriminator(real_img)
+        fake = self.critic(fake_img)
+        valid = self.critic(real_img)
 
         # Construct weighted average between real and fake images
         interpolated_img = RandomWeightedAverage()([real_img, fake_img])
         # Determine validity of weighted sample
-        validity_interpolated = self.discriminator(interpolated_img)
+        validity_interpolated = self.critic(interpolated_img)
 
         # Use Python partial to provide loss function with additional
         # 'averaged_samples' argument
@@ -176,7 +169,7 @@ class WGANGP():
         #-------------------------------
 
         # For the generator we freeze the critic's layers
-        self.discriminator.trainable = False
+        self.critic.trainable = False
         self.generator.trainable = True
 
         # Sampled noise for input to generator
@@ -184,7 +177,7 @@ class WGANGP():
         # Generate images based of noise
         img = self.generator(z_gen)
         # Discriminator determines validity
-        valid = self.discriminator(img)
+        valid = self.critic(img)
         # Defines generator model
         generator_model = Model(z_gen, valid)
         generator_model.compile(loss=self.wasserstein_loss, optimizer=optimizer)
@@ -234,23 +227,37 @@ class WGANGP():
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
 
-    def sample_images(self, epoch):
-        r, c = 5, 5
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        gen_imgs = self.generator.predict(noise)
+    def train_batch(self, real_images):
 
-        # Rescale images 0 - 1
-        gen_imgs = 0.5 * gen_imgs + 0.5
+        # Adversarial ground truths
+        valid = -np.ones((self.batch_size, 1))
+        fake = np.ones((self.batch_size, 1))
+        dummy = np.zeros((self.batch_size, 1)) # Dummy gt for gradient penalty
 
-        fig, axs = plt.subplots(r, c)
-        cnt = 0
-        for i in range(r):
-            for j in range(c):
-                axs[i,j].imshow(gen_imgs[cnt, :,:,0], cmap='gray')
-                axs[i,j].axis('off')
-                cnt += 1
-        fig.savefig("images/mnist_%d.png" % epoch)
-        plt.close()
+        # Get real images size
+        l = real_images.shape[0]
+
+        # Sample generator input
+        noise = np.random.normal(0, 1, (l, self.latent_dim))
+
+        # TRAIN CRITIC
+        self.d_loss = self.critic_model.train_on_batch([real_images, noise], [valid[:l], fake[:l], dummy[:l]])
+
+        #  TRAIN GENERATOR
+        if self.batch % self.n_critic == 0:
+            self.g_loss = self.generator_model.train_on_batch(noise, valid)
+
+    def load(self, dir, version):
+        self.generator.load_weights(dir + 'generator_' + str(version) + '.h5')
+        self.critic.load_weights(dir + 'critic_' + str(version) + '.h5')
+        self.critic_model.load_weights(dir + 'critic_model_' + str(version) + '.h5')
+        self.generator_model.load_weights(dir + 'generator_model_' + str(version) + '.h5')
+
+    def save(self, dir, version):
+        self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
+        self.critic.save_weights(dir + 'critic_' + str(version) + '.h5')
+        self.critic_model.save_weights(dir + 'critic_model_' + str(version) + '.h5')
+        self.generator_model.save_weights(dir + 'generator_model_' + str(version) + '.h5')
 
 # if __name__ == '__main__':
 #     wgan = WGANGP()

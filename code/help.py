@@ -183,4 +183,4 @@ def calculate_gold_metrics():
 
 # calculate_gold_metrics()
 # generate_graphs('../resources/wgangp/')
-create_gif('../resources/wgangp/')
+# create_gif('../resources/wgangp/')

@@ -25,7 +25,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 class GAN():
-    def __init__(self, name, architecture, latent_dim=100, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5,
+    def __init__(self, name, architecture, latent_dim=100, batch_size=64, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5,
                  d_lr=0.0002, d_beta_1=0.5):
         # Names
         self.name = name # TODO change name based on parameters
@@ -38,6 +38,7 @@ class GAN():
         self.d_lr = d_lr
         self.g_beta_1 = g_beta_1
         self.d_beta_1 = d_beta_1
+        self.batch_size = batch_size
 
         # Directories
         self.directory = '../resources/' + name + '/'
@@ -85,18 +86,18 @@ class GAN():
     def load_gan(self):
 
         if self.architecture == 'dcgan':
-            gan = DCGAN(latent_dim=self.latent_dim, img_shape=self.img_shape, g_lr=self.g_lr, g_beta_1=self.g_beta_1,
+            self.gan = DCGAN(latent_dim=self.latent_dim, batch_size=self.batch_size, img_shape=self.img_shape, g_lr=self.g_lr, g_beta_1=self.g_beta_1,
                         d_lr=self.d_lr, d_beta_1=self.d_beta_1)
-            self.generator = gan.generator
-            self.discriminator = gan.discriminator
-            self.combined = gan.gan
+            # self.generator = self.gan.generator
+            # self.discriminator = self.gan.discriminator
+            # self.combined = gan.gan
         elif self.architecture == 'wgangp':
-            gan = WGANGP(latent_dim=self.latent_dim, img_shape=self.img_shape, g_lr=self.g_lr, g_beta_1=self.g_beta_1,
+            self.gan = WGANGP(latent_dim=self.latent_dim, img_shape=self.img_shape, g_lr=self.g_lr, g_beta_1=self.g_beta_1,
                         d_lr=self.d_lr, d_beta_1=self.d_beta_1)
-            self.generator = gan.generator
-            self.discriminator = gan.discriminator
-            self.critic_model = gan.critic_model
-            self.generator_model = gan.generator_model
+            # self.generator = gan.generator
+            # self.discriminator = gan.discriminator
+            # self.critic_model = gan.critic_model
+            # self.generator_model = gan.generator_model
 
 
         # Get all the models saved
@@ -111,8 +112,9 @@ class GAN():
                 versions.append([int(x) for x in regex.findall(filename)][0])
             version = max(versions)
 
-            self.generator = load_model(self.model_dir + 'generator_' + str(version) + '.h5')
-            self.discriminator = load_model((self.model_dir + 'discriminator_' + str(version) + '.h5'))
+            # self.generator = load_model(self.model_dir + 'generator_' + str(version) + '.h5')
+            # self.discriminator = load_model((self.model_dir + 'discriminator_' + str(version) + '.h5'))
+            self.gan.load(self.model_dir, version)
 
             self.load_checkpoint()
 
@@ -151,7 +153,7 @@ class GAN():
 
     def plot_gif(self, epoch):
 
-        gen_imgs = self.generator.predict(self.gif_generator)
+        gen_imgs = self.gan.generator.predict(self.gif_generator)
         gen_imgs = np.sign(gen_imgs)
         gen_imgs = (0.5 * gen_imgs + 0.5) * 255
 
@@ -170,25 +172,22 @@ class GAN():
         plt.savefig(self.gif_dir + "%d.png" % epoch, bbox_inches='tight', pad_inches = 0.025)
         plt.close()
 
-    def batch_generator(self, batch_size):
+    def batch_generator(self):
 
         ids = np.arange(self.data.shape[0])
-        np.random.shuffle(ids)
         l = len(ids)
-        l = int(l / batch_size) * batch_size
+        miss = np.random.choice(ids, self.batch_size - l % self.batch_size)
+        ids = np.hstack((ids, miss))
 
-        for batch in range(0, l, batch_size):
+        np.random.shuffle(ids)
 
-            batch_ids = ids[batch:batch + batch_size]
+        for batch in range(0, l, self.batch_size):
+
+            batch_ids = ids[batch:batch + self.batch_size]
 
             yield self.data[batch_ids]
 
-
-    def train(self, epochs=100, batch_size=128):
-
-        # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
-        fake = np.zeros((batch_size, 1))
+    def train(self, epochs=100):
 
         metrics = pytorchMetrics()
 
@@ -201,39 +200,17 @@ class GAN():
 
             print("\n\tEpoch %d" % epoch)
 
-            batch_numbers = math.ceil(self.data.shape[0]/batch_size)
+            batch_numbers = math.ceil(self.data.shape[0]/self.batch_size)
 
-            for real_images in self.batch_generator(batch_size):
+            for real_images in self.batch_generator():
 
                 start = time.time()
 
-                # Generate fake images
-                noise = np.random.normal(0, 1, [batch_size, 100])
-                generated_images = self.generator.predict(noise)
-
-                # Get real images size
-                l = real_images.shape[0]
-
-                # Train the Discriminator
-                # self.discriminator.trainable = True
-                d_loss_real, d_acc_real = self.discriminator.train_on_batch(real_images[0:l], valid[0:l])
-                d_loss_fake, d_acc_fake = self.discriminator.train_on_batch(generated_images[0:l], fake[0:l])
-                d_loss = 0.5 * (d_loss_real + d_loss_fake)
-                d_acc = 0.5 * (d_acc_real + d_acc_fake)
-
-                # Train Generator
-                g_loss = self.combined.train_on_batch(noise, valid)
+                # Train epoch
+                self.gan.train_batch(real_images)
 
                 # Save iteration time
                 self.wallclocktime += time.time() - start
-
-                # Save batch summary
-                summary = tf.Summary()
-                summary.value.add(tag="d_loss", simple_value=d_loss)
-                summary.value.add(tag="g_loss", simple_value=g_loss)
-                summary.value.add(tag="d_acc", simple_value=d_acc)
-                summary.value.add(tag="g_acc", simple_value=1-d_acc)
-                summary_writer.add_summary(summary, global_step=self.batch)
 
                 print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
                 self.batch += 1
@@ -254,7 +231,7 @@ class GAN():
 
             # Select false images
             noise = np.random.normal(0, 1, (100, self.latent_dim))
-            false = self.generator.predict(noise)
+            false = self.gan.generator.predict(noise)
             false = np.sign(false)
             false = (0.5 * false + 0.5) * 255
             false = np.repeat(false, 3, 3)
@@ -273,103 +250,9 @@ class GAN():
             summary_writer.add_summary(summary, global_step=self.epoch)
 
             # Save model
-            self.generator.save(self.model_dir + 'generator_' + str(epoch) + '.h5')
-            self.discriminator.save(self.model_dir + 'discriminator_' + str(epoch) + '.h5')
+            self.gan.save(self.model_dir, self.epoch)
             self.save_checkpoint()
 
-    def trainwgan(self, epochs=100, batch_size=128):
-
-        # Adversarial ground truths
-        valid = -np.ones((batch_size, 1))
-        fake = np.ones((batch_size, 1))
-        dummy = np.zeros((batch_size, 1)) # Dummy gt for gradient penalty
-
-        metrics = pytorchMetrics()
-
-        # Summary
-        summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
-
-        for epoch in range(self.epoch, epochs):
-
-            self.epoch = epoch
-
-            print("\n\tEpoch %d" % epoch)
-
-            batch_numbers = math.ceil(self.data.shape[0]/batch_size)
-
-            for real_images in self.batch_generator(batch_size):
-
-                start = time.time()
-
-                # Generate fake images
-                noise = np.random.normal(0, 1, [batch_size, self.latent_dim])
-                # generated_images = self.generator.predict(noise)
-
-                # Get real images size
-                l = real_images.shape[0]
-
-                # Train the Discriminator
-                d_loss = self.critic_model.train_on_batch([real_images[0:l], noise[0:l]],[valid[0:l], fake[0:l], dummy[0:l]])
-                # d_acc = 0.5 * (d_acc_real + d_acc_fake)
-
-                if self.batch % 5 == 0:
-                    # Train Generator
-                    g_loss = self.generator_model.train_on_batch(noise, valid)
-
-                # Save iteration time
-                self.wallclocktime += time.time() - start
-
-                # Save batch summary
-                # summary = tf.Summary()
-                # summary.value.add(tag="d_loss", simple_value=d_loss)
-                # summary.value.add(tag="g_loss", simple_value=g_loss)
-                # summary.value.add(tag="d_acc", simple_value=d_acc)
-                # summary.value.add(tag="g_acc", simple_value=1-d_acc)
-                # summary_writer.add_summary(summary, global_step=self.batch)
-
-                print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
-                self.batch += 1
-
-            # Save epoch summary
-            summary = tf.Summary()
-            summary.value.add(tag="wallclocktime", simple_value=self.wallclocktime)
-            summary_writer.add_summary(summary, global_step=self.epoch)
-
-            self.plot_gif(epoch)
-
-            ## Run metrics and save model
-            # Select true images
-            idx = np.random.randint(0, self.data.shape[0], 100)
-            true = self.data[idx]
-            true = (0.5 * true + 0.5) * 255
-            true = np.repeat(true, 3, 3)
-
-            # Select false images
-            noise = np.random.normal(0, 1, (100, self.latent_dim))
-            false = self.generator.predict(noise)
-            false = np.sign(false)
-            false = (0.5 * false + 0.5) * 255
-            false = np.repeat(false, 3, 3)
-
-            score = metrics.compute_score(true, false)
-            self.metrics.append(score)
-
-            # Save evaluation summary
-            summary = tf.Summary()
-            summary.value.add(tag="emd", simple_value=score.emd)
-            summary.value.add(tag="fid", simple_value=score.fid)
-            summary.value.add(tag="inception", simple_value=score.inception)
-            summary.value.add(tag="knn", simple_value=score.knn)
-            summary.value.add(tag="mmd", simple_value=score.mmd)
-            summary.value.add(tag="mode", simple_value=score.mode)
-            summary_writer.add_summary(summary, global_step=self.epoch)
-
-            # Save model
-            self.generator.save(self.model_dir + 'generator_' + str(epoch) + '.h5')
-            self.discriminator.save(self.model_dir + 'discriminator_' + str(epoch) + '.h5')
-            self.save_checkpoint()
-
-
-ibis = GAN('wgangp', 'wgangp')
-ibis.trainwgan(epochs=100, batch_size=64)
+ibis = GAN('dcganload', 'dcgan', batch_size=64)
+ibis.train(epochs=100)
 

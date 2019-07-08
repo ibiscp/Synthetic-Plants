@@ -5,13 +5,15 @@ from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import UpSampling2D, Conv2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
+import numpy as np
+from tensorflow.keras.models import load_model
 
 # Remove warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 class DCGAN():
-    def __init__(self, latent_dim=100, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5, d_lr=0.0002, d_beta_1=0.5):
+    def __init__(self, latent_dim=100, batch_size=64, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5, d_lr=0.0002, d_beta_1=0.5):
         # Input shape
         self.img_rows = img_shape[0]
         self.img_cols = img_shape[1]
@@ -22,17 +24,18 @@ class DCGAN():
         self.d_lr = d_lr
         self.g_beta_1 = g_beta_1
         self.d_beta_1 = d_beta_1
+        self.batch_size = batch_size
 
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
         self.generator = self.generator()
         self.discriminator = self.discriminator()
-        self.gan = self.gan()
+        self.combined = self.combined()
 
     def generator(self):
 
-        input_size = int(self.img_rows /4)
+        input_size = int(self.img_rows / 4)
 
         model = Sequential()
 
@@ -84,7 +87,7 @@ class DCGAN():
 
         return model
 
-    def gan(self):
+    def combined(self):
 
         self.discriminator.trainable = False
 
@@ -96,4 +99,40 @@ class DCGAN():
 
         gan.compile(loss='binary_crossentropy', optimizer=Adam(self.g_lr, self.g_beta_1))
 
+        self.discriminator.trainable = True
+
         return gan
+
+    def train_batch(self, real_images):
+
+        # Adversarial ground truths
+        valid = np.ones((self.batch_size, 1))
+        fake = np.zeros((self.batch_size, 1))
+
+        # Get real images size
+        l = real_images.shape[0]
+
+        # Generate fake images
+        noise = np.random.normal(0, 1, [l, self.latent_dim])
+        generated_images = self.generator.predict(noise)
+
+        # TRAIN DISCRIMINATOR
+        d_loss_real, d_acc_real = self.discriminator.train_on_batch(real_images, valid[:l])
+        d_loss_fake, d_acc_fake = self.discriminator.train_on_batch(generated_images, fake[:l])
+        self.d_loss = 0.5 * (d_loss_real + d_loss_fake)
+        d_acc = 0.5 * (d_acc_real + d_acc_fake)
+
+        # TRAIN GENERATOR
+        self.g_loss = self.combined.train_on_batch(noise, valid)
+
+    def load(self, dir, version):
+        self.generator.load_weights(dir + 'generator_' + str(version) + '.h5')
+        self.discriminator.load_weights(dir + 'discriminator_' + str(version) + '.h5')
+        self.combined.load_weights(dir + 'combined_' + str(version) + '.h5')
+
+    def save(self, dir, version):
+        self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
+        self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
+        self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
+
+
