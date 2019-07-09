@@ -9,7 +9,6 @@ resources
 
 # Files
 *.gz
-gridSearch.py
 test.py
 wgangpTest.py
 

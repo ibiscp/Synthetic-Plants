@@ -6,7 +6,6 @@ from tensorflow.keras.layers import UpSampling2D, Conv2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 import numpy as np
-from tensorflow.keras.models import load_model
 
 # Remove warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -103,7 +102,7 @@ class DCGAN():
 
         return gan
 
-    def train_batch(self, real_images):
+    def train_batch(self, real_images, batch):
 
         # Adversarial ground truths
         valid = np.ones((self.batch_size, 1))
@@ -134,5 +133,4 @@ class DCGAN():
         self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
         self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
         self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
-
 

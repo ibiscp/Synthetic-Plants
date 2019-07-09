@@ -207,7 +207,7 @@ class GAN():
                 start = time.time()
 
                 # Train epoch
-                self.gan.train_batch(real_images)
+                self.gan.train_batch(real_images, self.batch)
 
                 # Save iteration time
                 self.wallclocktime += time.time() - start
@@ -253,6 +253,6 @@ class GAN():
             self.gan.save(self.model_dir, self.epoch)
             self.save_checkpoint()
 
-ibis = GAN('dcganload', 'dcgan', batch_size=64)
+ibis = GAN('wgangpload', 'wgangp', batch_size=64)
 ibis.train(epochs=100)
 
