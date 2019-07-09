@@ -6,24 +6,22 @@ from tensorflow.keras.layers import UpSampling2D, Conv2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 import numpy as np
+from help import *
 
 # Remove warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 class DCGAN():
-    def __init__(self, latent_dim=100, batch_size=64, img_shape=(128, 128, 1), g_lr=0.0002, g_beta_1=0.5, d_lr=0.0002, d_beta_1=0.5):
+    def __init__(self, **kwargs):
+        # Input parameters
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
         # Input shape
-        self.img_rows = img_shape[0]
-        self.img_cols = img_shape[1]
-        self.channels = img_shape[2]
-        self.img_shape = img_shape
-        self.latent_dim = latent_dim
-        self.g_lr = g_lr
-        self.d_lr = d_lr
-        self.g_beta_1 = g_beta_1
-        self.d_beta_1 = d_beta_1
-        self.batch_size = batch_size
+        self.img_rows = self.img_shape[0]
+        self.img_cols = self.img_shape[1]
+        self.channels = self.img_shape[2]
 
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
@@ -133,4 +131,37 @@ class DCGAN():
         self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
         self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
         self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
+
+    def save_checkpoint(self):
+
+        data = {}
+        data['architecture'] = self.architecture
+        data['img_shape'] = self.img_shape
+        data['latent_dim'] = self.latent_dim
+        data['g_lr'] = self.g_lr
+        data['d_lr'] = self.d_lr
+        data['g_beta_1'] = self.g_beta_1
+        data['d_beta_1'] = self.d_beta_1
+        data['epoch'] = self.epoch
+        data['batch'] = self.batch
+        data['wallclocktime'] = self.wallclocktime
+        data['metrics'] = self.metrics
+
+        save(data, self.directory + 'checkpoint.pkl')
+
+    def load_checkpoint(self):
+
+        data = load(self.directory + 'checkpoint.pkl')
+
+        self.architecture = data['architecture']
+        self.img_shape = data['img_shape']
+        self.latent_dim = data['latent_dim']
+        self.g_lr = data['g_lr']
+        self.d_lr = data['d_lr']
+        self.g_beta_1 = data['g_beta_1']
+        self.d_beta_1 = data['d_beta_1']
+        self.epoch = data['epoch'] + 1
+        self.batch = data['batch']
+        self.wallclocktime = data['wallclocktime']
+        self.metrics = data['metrics']
 

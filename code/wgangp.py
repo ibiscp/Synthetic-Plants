@@ -21,18 +21,15 @@ class RandomWeightedAverage(Add):
 
 
 class WGANGP():
-    def __init__(self, batch_size=64, latent_dim=100, img_shape=(128, 128, 1), n_critic=5, g_lr=0.00005, c_lr=0.00005):
-        # Input shape
-        self.batch_size = batch_size
-        self.latent_dim = latent_dim
-        self.img_shape = img_shape
-        self.img_rows = img_shape[0]
-        self.img_cols = img_shape[1]
-        self.channels = img_shape[2]
+    def __init__(self, **kwargs):
+        # Input parameters
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
-        self.n_critic = n_critic
-        self.g_lr = g_lr
-        self.c_lr = c_lr
+        # Input shape
+        self.img_rows = self.img_shape[0]
+        self.img_cols = self.img_shape[1]
+        self.channels = self.img_shape[2]
 
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
