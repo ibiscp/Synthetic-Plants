@@ -1,7 +1,6 @@
 # Import GANs
 from dcgan import DCGAN
 from wgangp import WGANGP
-from tensorflow.keras.models import load_model
 
 # Other libraries
 import os
@@ -23,6 +22,8 @@ from pytorchMetrics import *
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+GIF_MATRIX = 5
 
 class GAN():
     def __init__(self, architecture, dataset, **kwargs):
@@ -58,21 +59,19 @@ class GAN():
         self.kwargs['img_shape'] = dataset[0].shape
 
         # Load the seed for the gif
-        if not os.path.isfile(self.directory + '../' + 'seed.pkl'):
-            self.gif_generator = np.random.normal(0, 1, (self.gif_matrix ** 2, self.latent_dim))
-            save(self.gif_generator, self.directory + '../' + 'seed.pkl')
+        if not os.path.isfile(self.directory + '../' + str(self.latent_dim) + '.pkl'):
+            self.gif_generator = np.random.normal(0, 1, (GIF_MATRIX ** 2, self.latent_dim))
+            save(self.gif_generator, self.directory + '../' + str(self.latent_dim) + '.pkl')
         else:
-            self.gif_generator = load(self.directory + '../' + 'seed.pkl')
+            self.gif_generator = load(self.directory + '../' + str(self.latent_dim) + '.pkl')
 
         # Load the correct gan
         self.load_gan()
 
     def load_gan(self):
 
-        if self.architecture == 'dcgan':
-            self.gan = DCGAN(**self.kwargs)
-        elif self.architecture == 'wgangp':
-            self.gan = WGANGP(batch_size=64, latent_dim=self.latent_dim, img_shape=self.img_shape, n_critic=self.n.critic, g_lr=self.g_lr, c_lr=self.d_lr)
+        # Load gan
+        self.gan = globals()[self.architecture](**self.kwargs)
 
         # Get all the models saved
         files = glob.glob(self.model_dir + '*.h5')
@@ -108,13 +107,12 @@ class GAN():
 
     def plot_gif(self, epoch):
 
-        gif_matrix = 5
         gen_imgs = self.gan.generator.predict(self.gif_generator)
         gen_imgs = np.sign(gen_imgs)
         gen_imgs = (0.5 * gen_imgs + 0.5) * 255
 
-        plt.figure(figsize=(gif_matrix, gif_matrix))
-        gs1 = gridspec.GridSpec(gif_matrix, gif_matrix)
+        plt.figure(figsize=(GIF_MATRIX, GIF_MATRIX))
+        gs1 = gridspec.GridSpec(GIF_MATRIX, GIF_MATRIX)
         gs1.update(wspace=0.025, hspace=0.025)
         for i in range(gen_imgs.shape[0]):
             ax = plt.subplot(gs1[i])
@@ -146,6 +144,7 @@ class GAN():
     def train(self):
 
         metrics = pytorchMetrics()
+        wallclocktime = 0
 
         # Summary
         summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
@@ -154,7 +153,7 @@ class GAN():
 
             self.epoch = epoch
 
-            print("\n\tEpoch %d" % epoch)
+            print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
 
             batch_numbers = math.ceil(self.data.shape[0]/self.batch_size)
 
@@ -209,10 +208,5 @@ class GAN():
             self.gan.save(self.model_dir, self.epoch)
             self.save_checkpoint()
 
-# Load sentences
-dataset = load_data(path='../dataset/test/')
-dic = {'latent_dim':100, 'batch_size':64, 'g_lr':0.0002, 'g_beta_1':0.5, 'd_lr':0.0002, 'd_beta_1':0.5, 'epochs':100}
-ibis = GAN('dcgan', dataset, **dic)
-
-ibis.train()
+        return score
 
