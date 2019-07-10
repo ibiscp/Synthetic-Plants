@@ -32,7 +32,7 @@ class gridSearch:
 
             # Write to results
             with open('../resources/results.txt', "a+") as f:
-                f.write('emd: %f\t fid: %f\t inception: %f\t knn: %f\t mmd: %f\t mode: %f' % (score.emd, score.fid, score.inception, score.knn, score.mmd, score.mode))
+                f.write('\nemd: %f\t fid: %f\t inception: %f\t knn: %f\t mmd: %f\t mode: %f' % (score.emd, score.fid, score.inception, score.knn, score.mmd, score.mode))
 
     def summary(self):
         # Summarize results

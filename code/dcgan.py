@@ -131,37 +131,3 @@ class DCGAN():
         self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
         self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
         self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
-
-    def save_checkpoint(self):
-
-        data = {}
-        data['architecture'] = self.architecture
-        data['img_shape'] = self.img_shape
-        data['latent_dim'] = self.latent_dim
-        data['g_lr'] = self.g_lr
-        data['d_lr'] = self.d_lr
-        data['g_beta_1'] = self.g_beta_1
-        data['d_beta_1'] = self.d_beta_1
-        data['epoch'] = self.epoch
-        data['batch'] = self.batch
-        data['wallclocktime'] = self.wallclocktime
-        data['metrics'] = self.metrics
-
-        save(data, self.directory + 'checkpoint.pkl')
-
-    def load_checkpoint(self):
-
-        data = load(self.directory + 'checkpoint.pkl')
-
-        self.architecture = data['architecture']
-        self.img_shape = data['img_shape']
-        self.latent_dim = data['latent_dim']
-        self.g_lr = data['g_lr']
-        self.d_lr = data['d_lr']
-        self.g_beta_1 = data['g_beta_1']
-        self.d_beta_1 = data['d_beta_1']
-        self.epoch = data['epoch'] + 1
-        self.batch = data['batch']
-        self.wallclocktime = data['wallclocktime']
-        self.metrics = data['metrics']
-

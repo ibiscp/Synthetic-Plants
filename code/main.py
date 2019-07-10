@@ -15,7 +15,7 @@ if __name__ == '__main__':
     dataset = load_data(path=args.dataset_path)
 
     # Define the base grid search parameters
-    base = {'epochs': [1], 'latent_dim': [100], 'batch_size': [64]}
+    base = {'epochs': [2], 'latent_dim': [100, 200], 'batch_size': [64]}
 
     # DCGAN
     DCGAN = {'g_lr': [0.0002], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_beta_1': [0.5]}

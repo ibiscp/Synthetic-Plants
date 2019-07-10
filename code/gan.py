@@ -91,7 +91,7 @@ class GAN():
 
     def save_checkpoint(self):
 
-        data = vars(self)
+        data = vars(self).copy()
         del data['gif_generator']
         del data['gan']
         del data['data']
