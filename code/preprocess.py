@@ -11,7 +11,7 @@ import random
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("dataset_path", nargs='?', default='../dataset/Bonn 2016/', help="Dataset path")
-    parser.add_argument("output_path", nargs='?', default='../dataset/Processed/', help="Output path")
+    parser.add_argument("plant_type", nargs='?', default='SugarBeets', help="Output path")
 
     return parser.parse_args()
 
@@ -57,7 +57,7 @@ def find_max_radius(contours, stem_x, stem_y):
 
     return dist
 
-def generate_dataset(path, output_path, dim = 512, smooth = False, save_images=False):
+def generate_dataset(path, output_path, dim = 512, type='SugarBeets', smooth = False, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
@@ -106,7 +106,7 @@ def generate_dataset(path, output_path, dim = 512, smooth = False, save_images=F
                     print('\t\tError: Empty Yaml')
                     continue
                 for ann in field:
-                    if ann['type'] == 'SugarBeets':
+                    if ann['type'] == type:
 
                         # Contours
                         x = ann['contours'][0]['x']
@@ -187,24 +187,26 @@ if __name__ == '__main__':
 
     folders = ['train/', 'test/']
     subfolers = ['mask/', 'rgb/', 'nir/']
+
+    output_path = '../dataset/' + args.plant_type + '/'
     # Create folders if do not exist
-    if os.path.exists(args.output_path):
+    if os.path.exists(output_path):
         print('\nFolder', args.output_path, 'already exist, delete it before continue!\n')
     else:
         print('\nCreating folders!\n')
 
-        os.makedirs(args.output_path)
+        os.makedirs(output_path)
         for f in folders:
             for s in subfolers:
-                os.makedirs(args.output_path + f + s)
+                os.makedirs(output_path + f + s)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=args.output_path, save_images=True)
+        generate_dataset(path=args.dataset_path, output_path=output_path, type=args.plant_type, save_images=True)
 
         # Split train and test files
-        files = os.listdir(args.output_path + folders[0] + 'mask/')
+        files = os.listdir(output_path + folders[0] + 'mask/')
         cut_files = random.sample(files, 100)
 
         for c in cut_files:
             for s in subfolers:
-                shutil.move(args.output_path + folders[0] + s + c, args.output_path + folders[1] + s + c)
+                shutil.move(output_path + folders[0] + s + c, output_path + folders[1] + s + c)
