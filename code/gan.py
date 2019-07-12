@@ -7,8 +7,8 @@ import os
 import numpy as np
 import cv2
 import tensorflow as tf
-import matplotlib
-matplotlib.use("TKAgg")
+# import matplotlib
+# matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import tensorflow.contrib.gan as tfgan
