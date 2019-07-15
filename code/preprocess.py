@@ -57,7 +57,7 @@ def find_max_radius(contours, stem_x, stem_y):
 
     return dist
 
-def generate_dataset(path, output_path, dim = 512, type='SugarBeets', smooth = False, save_images=False):
+def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = False, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
