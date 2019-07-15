@@ -19,6 +19,7 @@ import re
 from help import *
 import math
 from pytorchMetrics import *
+from operator import itemgetter
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -26,7 +27,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 GIF_MATRIX = 5
 
 class GAN():
-    def __init__(self, architecture, dataset, **kwargs):
+    def __init__(self, architecture, train_dataset, test_dataset, shape, **kwargs):
 
         self.architecture = architecture
         self.latent_dim = kwargs['latent_dim']
@@ -55,8 +56,9 @@ class GAN():
             os.makedirs(self.model_dir)
 
         # Load data
-        self.data = dataset
-        self.kwargs['img_shape'] = dataset[0].shape
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+        self.kwargs['img_shape'] = shape
 
         # Load the seed for the gif
         if not os.path.isfile(self.directory + '../' + str(self.latent_dim) + '.pkl'):
@@ -94,7 +96,8 @@ class GAN():
         data = vars(self).copy()
         del data['gif_generator']
         del data['gan']
-        del data['data']
+        del data['train_dataset']
+        del data['test_dataset']
 
         save(data, self.directory + 'checkpoint.pkl')
 
@@ -128,7 +131,7 @@ class GAN():
 
     def batch_generator(self):
 
-        ids = np.arange(self.data.shape[0])
+        ids = np.arange(len(self.train_dataset))
         l = len(ids)
         miss = np.random.choice(ids, self.batch_size - l % self.batch_size)
         ids = np.hstack((ids, miss))
@@ -139,7 +142,11 @@ class GAN():
 
             batch_ids = ids[batch:batch + self.batch_size]
 
-            yield self.data[batch_ids]
+            files = [self.train_dataset[i] for i in batch_ids]
+
+            data = load_data(files)
+
+            yield data
 
     def train(self):
 
@@ -155,7 +162,7 @@ class GAN():
 
             print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
 
-            batch_numbers = math.ceil(self.data.shape[0]/self.batch_size)
+            batch_numbers = math.ceil(len(self.train_dataset)/self.batch_size)
 
             for real_images in self.batch_generator():
 
@@ -179,10 +186,9 @@ class GAN():
 
             ## Run metrics and save model
             # Select true images
-            idx = np.random.randint(0, self.data.shape[0], self.latent_dim)
-            true = self.data[idx]
-            true = (0.5 * true + 0.5) * 255
-            true = np.repeat(true, 3, 3)
+            idx = np.random.randint(0, len(self.test_dataset), 100)
+            files = [self.test_dataset[i] for i in idx]
+            true = load_data(files, repeat=True)
 
             # Select false images
             noise = np.random.normal(0, 1, (100, self.latent_dim))

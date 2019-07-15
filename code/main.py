@@ -2,20 +2,24 @@ from argparse import ArgumentParser
 from gridSearch import *
 from help import *
 
+
+# '../dataset/SugarBeets/train/mask/'
+
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets/train/mask/', help="Name of the dataset path to use")
+    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets/', help="Name of the dataset path to use")
 
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
 
-    # Load sentences
-    dataset = load_data(path=args.dataset_path)
+    # Load dataset list
+    train_dataset, shape = load_dataset_list(directory=args.dataset_path + 'train/mask/')
+    test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/')
 
     # Define the base grid search parameters
-    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [128]}
+    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [64]}
 
     # DCGAN
     DCGAN = {'g_lr': [0.0002], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_beta_1': [0.5]}
@@ -26,7 +30,7 @@ if __name__ == '__main__':
     WGANGP.update(base)
 
     # Train
-    grid = gridSearch(dataset=dataset, parameters=WGANGP)
+    grid = gridSearch(train_dataset=train_dataset, test_dataset=test_dataset, shape=shape, parameters=WGANGP)
     grid.fit()
 
     # Print grid search summary

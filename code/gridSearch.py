@@ -8,12 +8,14 @@ def retrieve_name(var):
 
 class gridSearch:
 
-    def __init__(self, dataset, parameters):
-        self.dataset = dataset
+    def __init__(self, train_dataset, test_dataset, shape, parameters):
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
         self.parameters = parameters
         self.name = retrieve_name(parameters)
         self.iter = 0
         self.results = []
+        self.shape = shape
 
     def fit(self):
 
@@ -22,7 +24,7 @@ class gridSearch:
             print('\nTraining:', str(self.iter) + '/' + str(len(ParameterGrid(self.parameters))), '- Parameters:', g)
 
             # Model
-            model = GAN(self.name, self.dataset, **g)
+            model = GAN(self.name, self.train_dataset, self.test_dataset, self.shape, **g)
 
             score = model.train()
 

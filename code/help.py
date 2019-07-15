@@ -130,15 +130,23 @@ def generate_graphs(directory):
         plt.close(fig)
     return frames
 
-def load_data(path='../dataset/test/', repeat = False):
+def load_dataset_list(directory):
     # Load the dataset
-    files = os.listdir(path)
+    files = glob.glob(directory + '*.png')
     number_files = len(files)
     print('\nNumber of files: ', number_files)
 
+    image = cv2.imread(files[0], 0)
+    image = np.expand_dims(image, axis=3)
+    shape = image.shape
+
+    return files, shape
+
+
+def load_data(files, repeat=False):
     data = []
     for file in files:
-        img = cv2.imread(path + file, 0)
+        img = cv2.imread(file, 0)
         data.append(img)
 
     data = np.asarray(data, dtype='uint8')
@@ -155,7 +163,8 @@ def load_data(path='../dataset/test/', repeat = False):
 # Calculate metrics when comparing one set of real images with another
 # These values are the desirable values to achieve with GAN
 def calculate_gold_metrics():
-    data = load_data(repeat=True)
+    files = load_dataset_list('../dataset/test/')
+    data = load_data(files, repeat=True)
     metrics_list = []
 
     metrics = pytorchMetrics()
