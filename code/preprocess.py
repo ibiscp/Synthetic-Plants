@@ -30,7 +30,7 @@ def rotate_image(img, angle, dim):
 # Return list of augmented images given one single image
 def augment_image(img, dim):
     flip_list = [-1, 0, 1]
-    rotation_list = list(range(0, 360, 30))
+    rotation_list = list(range(0, 360, 10))
     images = []
 
     for flip in flip_list:

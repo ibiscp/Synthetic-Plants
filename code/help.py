@@ -9,7 +9,7 @@ from pytorchMetrics import *
 import matplotlib
 # ['GTK3Agg', 'GTK3Cairo', 'MacOSX', 'nbAgg', 'Qt4Agg', 'Qt4Cairo', 'Qt5Agg', 'Qt5Cairo', 'TkAgg', 'TkCairo', 'WebAgg',
  # 'WX', 'WXAgg', 'WXCairo', 'agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template']
-# matplotlib.use("WebAgg")
+matplotlib.use("WebAgg")
 matplotlib.rcParams['savefig.pad_inches'] = 0
 import matplotlib.pyplot as plt
 # import matplotlib.gridspec as gridspec
@@ -163,7 +163,7 @@ def load_data(files, repeat=False):
 # Calculate metrics when comparing one set of real images with another
 # These values are the desirable values to achieve with GAN
 def calculate_gold_metrics():
-    files = load_dataset_list('../dataset/test/')
+    files, _ = load_dataset_list('../dataset/SugarBeets/test/mask/')
     data = load_data(files, repeat=True)
     metrics_list = []
 
@@ -192,4 +192,4 @@ def calculate_gold_metrics():
 
 # calculate_gold_metrics()
 # generate_graphs('../resources/wgangp/')
-# create_gif('../resources/wgangp/')
+create_gif('../resources/DCGAN-batch_size-128-d_beta_1-0.5-d_lr-0.0002-epochs-100-g_beta_1-0.5-g_lr-0.0002-latent_dim-100/')

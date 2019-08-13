@@ -7,8 +7,8 @@ import os
 import numpy as np
 import cv2
 import tensorflow as tf
-# import matplotlib
-# matplotlib.use("TKAgg")
+import matplotlib
+matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import tensorflow.contrib.gan as tfgan
@@ -129,16 +129,16 @@ class GAN():
         plt.savefig(self.gif_dir + "%d.png" % epoch, bbox_inches='tight', pad_inches=0.025)
         plt.close()
 
-    def batch_generator(self):
+    def batch_generator(self, samples):
 
         ids = np.arange(len(self.train_dataset))
-        l = len(ids)
-        miss = np.random.choice(ids, self.batch_size - l % self.batch_size)
-        ids = np.hstack((ids, miss))
+        # l = len(ids)
+        # miss = np.random.choice(ids, self.batch_size - l % self.batch_size)
+        # ids = np.hstack((ids, miss))
 
         np.random.shuffle(ids)
 
-        for batch in range(0, l, self.batch_size):
+        for batch in range(0, samples, self.batch_size):
 
             batch_ids = ids[batch:batch + self.batch_size]
 
@@ -148,7 +148,7 @@ class GAN():
 
             yield data
 
-    def train(self):
+    def train(self, samples=2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
@@ -162,9 +162,9 @@ class GAN():
 
             print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
 
-            batch_numbers = math.ceil(len(self.train_dataset)/self.batch_size)
+            batch_numbers = math.ceil(samples/self.batch_size)
 
-            for real_images in self.batch_generator():
+            for real_images in self.batch_generator(samples):
 
                 start = time.time()
 
