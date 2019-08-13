@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import tensorflow as tf
 import matplotlib
-matplotlib.use("TKAgg")
+matplotlib.use("WebAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import tensorflow.contrib.gan as tfgan
