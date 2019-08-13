@@ -192,4 +192,4 @@ def calculate_gold_metrics():
 
 # calculate_gold_metrics()
 # generate_graphs('../resources/wgangp/')
-create_gif('../resources/DCGAN-batch_size-128-d_beta_1-0.5-d_lr-0.0002-epochs-100-g_beta_1-0.5-g_lr-0.0002-latent_dim-100/')
+# create_gif('../resources/DCGAN-batch_size-128-d_beta_1-0.5-d_lr-0.0002-epochs-100-g_beta_1-0.5-g_lr-0.0002-latent_dim-100/')
