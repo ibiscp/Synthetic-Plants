@@ -12,6 +12,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("dataset_path", nargs='?', default='../dataset/Bonn 2016/', help="Dataset path")
     parser.add_argument("plant_type", nargs='?', default='SugarBeets', help="Output path")
+    parser.add_argument("dimension", nargs='?', const=512, type=int, default=512, help="Image dimension")
 
     return parser.parse_args()
 
@@ -57,7 +58,7 @@ def find_max_radius(contours, stem_x, stem_y):
 
     return dist
 
-def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = False, save_images=False):
+def generate_dataset(path, output_path, dim = 512, type='SugarBeets', smooth = False, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
@@ -188,7 +189,7 @@ if __name__ == '__main__':
     folders = ['train/', 'test/']
     subfolers = ['mask/', 'rgb/', 'nir/']
 
-    output_path = '../dataset/' + args.plant_type + '/'
+    output_path = '../dataset/' + args.plant_type + '_' + str(args.dimension) + '/'
     # Create folders if do not exist
     if os.path.exists(output_path):
         print('\nFolder', args.output_path, 'already exist, delete it before continue!\n')
@@ -201,7 +202,7 @@ if __name__ == '__main__':
                 os.makedirs(output_path + f + s)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path, type=args.plant_type, save_images=True)
+        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, type=args.plant_type, save_images=True)
 
         # Split train and test files
         files = os.listdir(output_path + folders[0] + 'mask/')

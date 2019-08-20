@@ -7,8 +7,6 @@ import numpy as np
 # import random
 from pytorchMetrics import *
 import matplotlib
-# ['GTK3Agg', 'GTK3Cairo', 'MacOSX', 'nbAgg', 'Qt4Agg', 'Qt4Cairo', 'Qt5Agg', 'Qt5Cairo', 'TkAgg', 'TkCairo', 'WebAgg',
- # 'WX', 'WXAgg', 'WXCairo', 'agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template']
 matplotlib.use("WebAgg")
 matplotlib.rcParams['savefig.pad_inches'] = 0
 import matplotlib.pyplot as plt

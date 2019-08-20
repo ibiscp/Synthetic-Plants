@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -34,9 +35,10 @@ class WGANGP():
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
-        self.generator = self.generator()
-        self.critic = self.critic()
-        self.critic_model, self.generator_model = self.gan()
+        with tf.device('gpu'):
+            self.generator = self.generator()
+            self.critic = self.critic()
+            self.critic_model, self.generator_model = self.gan()
 
     def gradient_penalty_loss(self, y_true, y_pred, averaged_samples):
         """
