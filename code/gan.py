@@ -162,7 +162,7 @@ class GAN():
 
             yield data
 
-    def train(self, samples=32):
+    def train(self, samples=2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
