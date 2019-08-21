@@ -26,7 +26,7 @@ class DCGAN():
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
-        with tf.device('gpu'):
+        with tf.device('cpu'):
             self.generator = self.generator()
             self.discriminator = self.discriminator()
             self.combined = self.combined()
@@ -115,7 +115,9 @@ class DCGAN():
         generated_images = self.generator.predict(noise)
 
         # TRAIN DISCRIMINATOR
+        print(real_images.shape)
         d_loss_real, d_acc_real = self.discriminator.train_on_batch(real_images, valid[:l])
+        print(real_images.shape)
         d_loss_fake, d_acc_fake = self.discriminator.train_on_batch(generated_images, fake[:l])
         self.d_loss = 0.5 * (d_loss_real + d_loss_fake)
         d_acc = 0.5 * (d_acc_real + d_acc_fake)
