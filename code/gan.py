@@ -186,12 +186,13 @@ class GAN():
 
             ## Run metrics and save model
             # Select true images
-            idx = np.random.randint(0, len(self.test_dataset), 100)
+            test_samples = 64
+            idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, repeat=True)
 
             # Select false images
-            noise = np.random.normal(0, 1, (100, self.latent_dim))
+            noise = np.random.normal(0, 1, (test_samples, self.latent_dim))
             false = self.gan.generator.predict(noise)
             false = np.sign(false)
             false = (0.5 * false + 0.5) * 255
