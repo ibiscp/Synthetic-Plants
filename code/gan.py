@@ -164,18 +164,18 @@ class GAN():
 
             batch_numbers = math.ceil(samples/self.batch_size)
 
-            for real_images in self.batch_generator(samples):
-
-                start = time.time()
-
-                # Train epoch
-                self.gan.train_batch(real_images, self.batch)
-
-                # Save iteration time
-                wallclocktime += time.time() - start
-
-                print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
-                self.batch += 1
+            # for real_images in self.batch_generator(samples):
+            #
+            #     start = time.time()
+            #
+            #     # Train epoch
+            #     self.gan.train_batch(real_images, self.batch)
+            #
+            #     # Save iteration time
+            #     wallclocktime += time.time() - start
+            #
+            #     print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
+            #     self.batch += 1
 
             # Save epoch summary
             summary = tf.Summary()

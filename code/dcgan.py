@@ -26,7 +26,7 @@ class DCGAN():
         assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
         assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
-        with tf.device('cpu'):
+        with tf.device('gpu'):
             self.generator = self.generator()
             self.discriminator = self.discriminator()
             self.combined = self.combined()
