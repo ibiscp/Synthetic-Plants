@@ -134,8 +134,8 @@ class GAN():
         samples_batch = 4
         samples = []
 
-        for i in range(int(len(noise)/samples_batch)):
-            n = noise[i*samples_batch:(i+1)*samples_batch]
+        for i in range(math.ceil(len(noise)/samples_batch)):
+            n = noise[i*samples_batch:min((i+1)*samples_batch, len(noise))]
             output = self.gan.generator.predict(n)
             samples.append(output)
 
