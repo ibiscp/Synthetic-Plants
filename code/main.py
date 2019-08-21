@@ -7,7 +7,7 @@ from help import *
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets_256/', help="Name of the dataset path to use")
+    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets_512/', help="Name of the dataset path to use")
 
     return parser.parse_args()
 
