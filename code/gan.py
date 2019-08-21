@@ -110,7 +110,7 @@ class GAN():
 
     def plot_gif(self, epoch):
 
-        gen_imgs = self.gan.generator.predict(self.gif_generator)
+        gen_imgs = self.predict_generator(self.gif_generator)
         gen_imgs = np.sign(gen_imgs)
         gen_imgs = (0.5 * gen_imgs + 0.5) * 255
 
@@ -128,6 +128,20 @@ class GAN():
 
         plt.savefig(self.gif_dir + "%d.png" % epoch, bbox_inches='tight', pad_inches=0.025)
         plt.close()
+
+    def predict_generator(self, noise):
+
+        samples_batch = 1
+        samples = []
+
+        for i in range(int(len(noise)/samples_batch)):
+            n = noise[i*samples_batch:(i+1)*samples_batch]
+            output = self.gan.generator.predict(n)
+            samples.append(output)
+
+        samples = np.vstack(samples)
+
+        return samples
 
     def batch_generator(self, samples):
 
@@ -164,36 +178,36 @@ class GAN():
 
             batch_numbers = math.ceil(samples/self.batch_size)
 
-            for real_images in self.batch_generator(samples):
-
-                start = time.time()
-
-                # Train epoch
-                self.gan.train_batch(real_images, self.batch)
-
-                # Save iteration time
-                wallclocktime += time.time() - start
-
-                print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
-                self.batch += 1
-
-            # Save epoch summary
-            summary = tf.Summary()
-            summary.value.add(tag="wallclocktime", simple_value=wallclocktime)
-            summary_writer.add_summary(summary, global_step=self.epoch)
+            # for real_images in self.batch_generator(samples):
+            #
+            #     start = time.time()
+            #
+            #     # Train epoch
+            #     self.gan.train_batch(real_images, self.batch)
+            #
+            #     # Save iteration time
+            #     wallclocktime += time.time() - start
+            #
+            #     print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
+            #     self.batch += 1
+            #
+            # # Save epoch summary
+            # summary = tf.Summary()
+            # summary.value.add(tag="wallclocktime", simple_value=wallclocktime)
+            # summary_writer.add_summary(summary, global_step=self.epoch)
 
             self.plot_gif(epoch)
 
             ## Run metrics and save model
             # Select true images
-            test_samples = 8
+            test_samples = 128
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, repeat=True)
 
             # Select false images
             noise = np.random.normal(0, 1, (test_samples, self.latent_dim))
-            false = self.gan.generator.predict(noise)
+            false = self.predict_generator(noise)
             false = np.sign(false)
             false = (0.5 * false + 0.5) * 255
             false = np.repeat(false, 3, 3)
