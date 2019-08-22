@@ -230,5 +230,8 @@ class GAN():
                 self.gan.save(self.model_dir, self.epoch)
                 self.save_checkpoint()
 
+        # Create gif
+        create_gif(self.directory, self.test_dataset)
+
         return score
 

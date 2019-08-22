@@ -28,8 +28,8 @@ def load(name):
         return pickle.load(f)
 
 # Create the gif given the dictionary and its size
-def create_gif(directory, duration=10):
-    files = glob.glob(directory + 'gif/' + '*.png')
+def create_gif(directory, test_dataset, duration=10):
+    files = glob.glob(directory + '/gif/' + '*.png')
     files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     frames = []
     images = []
@@ -41,7 +41,7 @@ def create_gif(directory, duration=10):
         images.append(img)
 
     # Construct graph
-    graphs = generate_graphs(directory)
+    graphs = generate_graphs(directory, test_dataset)
 
     # new_im = Image.new('RGB', (total_width, max_height))
     for i, image in enumerate(images):
@@ -60,7 +60,7 @@ def create_gif(directory, duration=10):
     # Create gif
     imageio.mimsave(directory + 'training.gif', frames, format='GIF', duration=time)
 
-def generate_graphs(directory):
+def generate_graphs(directory, test_dataset):
 
     # Load metrics
     metrics = load(directory + 'checkpoint.pkl')
@@ -90,7 +90,7 @@ def generate_graphs(directory):
     frames = []
 
     # Calculate gold metrics
-    gold_metrics = calculate_gold_metrics()
+    gold_metrics = calculate_gold_metrics(test_dataset)
 
     # Graph size
     width = 420
@@ -129,11 +129,12 @@ def generate_graphs(directory):
         plt.close(fig)
     return frames
 
+# Load list of files of a dictionary with image shape
 def load_dataset_list(directory):
     # Load the dataset
     files = glob.glob(directory + '*.png')
-    number_files = len(files)
-    print('\nNumber of files: ', number_files)
+    # number_files = len(files)
+    # print('\nNumber of files: ', number_files)
 
     image = cv2.imread(files[0], 0)
     image = np.expand_dims(image, axis=3)
@@ -141,7 +142,10 @@ def load_dataset_list(directory):
 
     return files, shape
 
-
+# Load data given a file list
+# Input:
+#   - files: list of files
+#   - repeat: repeat third chanel
 def load_data(files, repeat=False):
     data = []
     for file in files:
@@ -161,17 +165,17 @@ def load_data(files, repeat=False):
 
 # Calculate metrics when comparing one set of real images with another
 # These values are the desirable values to achieve with GAN
-def calculate_gold_metrics():
-    files, _ = load_dataset_list('../dataset/SugarBeets/test/mask/')
-    data = load_data(files, repeat=True)
+def calculate_gold_metrics(test_dataset):
+    # files, _ = load_dataset_list(test_directory + 'mask/')
+    data = load_data(test_dataset, repeat=True)
     metrics_list = []
 
     metrics = pytorchMetrics()
 
-    for i in range(2):
-        samples = data[np.random.choice(data.shape[0], 200)]
-        real_1 = samples[:100]
-        real_2 = samples[100:]
+    for i in range(10):
+        samples = data[np.random.choice(data.shape[0], 100)]
+        real_1 = samples[:50]
+        real_2 = samples[50:]
 
         metrics_list.append(metrics.compute_score(real_1, real_2))
 
