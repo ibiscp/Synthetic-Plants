@@ -7,7 +7,6 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 import numpy as np
 from help import *
-import math
 
 # Remove warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -24,16 +23,8 @@ class DCGAN():
         self.img_cols = self.img_shape[1]
         self.channels = self.img_shape[2]
 
-        assert isPowerOfTwo(self.img_rows) == True, "output image size must be power of 2"
-        assert isPowerOfTwo(self.img_cols) == True, "output image size must be power of 2"
-        assert self.img_rows == self.img_cols, "output image size must be square"
-
-        # Possible parameters
-        self.startingSize = 8
-        self.outputFilter = 32
-        self.kernel_size = 3
-
-        self.upSamplingLayer = int(math.log2(self.img_rows) - math.log2(self.startingSize))
+        assert self.img_rows % 4 == 0, "output image size must be divisible by 4 and square"
+        assert self.img_cols % 4 == 0, "output image size must be divisible by 4 and square"
 
         with tf.device('gpu'):
             self.generator = self.generator()
@@ -42,7 +33,21 @@ class DCGAN():
 
     def generator(self):
 
+        # input_size = int(self.img_rows / 4)
+
         model = Sequential()
+
+        # model.add(Dense(128 * input_size * input_size, activation="relu", input_dim=self.latent_dim))
+        # model.add(Reshape((input_size, input_size, 128)))
+        # model.add(UpSampling2D())
+        # model.add(Conv2D(128, kernel_size=3, padding="same"))
+        # model.add(BatchNormalization(momentum=0.8))
+        # model.add(Activation("relu"))
+        #
+        # model.add(UpSampling2D())
+        # model.add(Conv2D(64, kernel_size=3, padding="same"))
+        # model.add(BatchNormalization(momentum=0.8))
+        # model.add(Activation("relu"))
 
         starting = self.outputFilter * (2 ** (self.upSamplingLayer + 2))
         model.add(Dense(starting * self.startingSize ** 2, activation="relu", input_dim=self.latent_dim))
@@ -64,14 +69,34 @@ class DCGAN():
         model.add(Conv2D(self.channels, kernel_size=3, padding="same"))
         model.add(Activation("tanh"))
 
-        # print("\nGenerator")
-        # model.summary()
+        print("\nGenerator")
+        model.summary()
 
         return model
 
     def discriminator(self):
 
         model = Sequential()
+
+        # model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        #
+        # model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
+        # model.add(ZeroPadding2D(padding=((0,1),(0,1))))
+        # model.add(BatchNormalization(momentum=0.8))
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        #
+        # model.add(Conv2D(128, kernel_size=3, strides=2, padding="same"))
+        # model.add(BatchNormalization(momentum=0.8))
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        #
+        # model.add(Conv2D(256, kernel_size=3, strides=1, padding="same"))
+        # model.add(BatchNormalization(momentum=0.8))
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
 
         model.add(Conv2D(self.outputFilter, kernel_size=self.kernel_size, strides=2, input_shape=self.img_shape, padding="same"))  # 256 -> 128
         model.add(LeakyReLU(alpha=0.2))
@@ -85,13 +110,82 @@ class DCGAN():
             model.add(Dropout(0.25))
             model.add(BatchNormalization(momentum=0.8))
 
+        # model.add(Conv2D(128, kernel_size=self.kernel_size, strides=2, padding="same"))  # 64 -> 32
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        # model.add(BatchNormalization(momentum=0.8))
+        #
+        # model.add(Conv2D(256, kernel_size=self.kernel_size, strides=1, padding="same"))  # 32 -> 16
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        # model.add(BatchNormalization(momentum=0.8))
+        #
+        # model.add(Conv2D(512, kernel_size=self.kernel_size, strides=1, padding="same"))  # 16 -> 8
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        # model.add(BatchNormalization(momentum=0.8))
+
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
         model.compile(loss='binary_crossentropy', optimizer=Adam(self.d_lr, self.d_beta_1), metrics=['accuracy'])
 
-        # print("\nDiscriminator")
-        # model.summary()
+        print("\nDiscriminator")
+        model.summary()
+
+        return model
+
+    def generator(self):
+
+        input_size = int(self.img_rows / 4)
+
+        model = Sequential()
+
+        model.add(Dense(128 * input_size * input_size, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((input_size, input_size, 128)))
+        model.add(UpSampling2D())
+        model.add(Conv2D(128, kernel_size=3, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+
+        model.add(UpSampling2D())
+        model.add(Conv2D(64, kernel_size=3, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+
+        model.add(Conv2D(self.channels, kernel_size=3, padding="same"))
+        model.add(Activation("tanh"))
+
+        return model
+
+    def discriminator(self):
+
+        model = Sequential()
+
+        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+
+        model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
+        model.add(ZeroPadding2D(padding=((0,1),(0,1))))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+
+        model.add(Conv2D(128, kernel_size=3, strides=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+
+        model.add(Conv2D(256, kernel_size=3, strides=1, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+
+        model.add(Flatten())
+        model.add(Dense(1, activation='sigmoid'))
+
+        model.compile(loss='binary_crossentropy', optimizer=Adam(self.d_lr, self.d_beta_1), metrics=['accuracy'])
 
         return model
 
