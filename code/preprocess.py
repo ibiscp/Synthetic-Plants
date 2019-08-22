@@ -12,7 +12,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("dataset_path", nargs='?', default='../dataset/Bonn 2016/', help="Dataset path")
     parser.add_argument("plant_type", nargs='?', default='SugarBeets', help="Output path")
-    parser.add_argument("dimension", nargs='?', const=512, type=int, default=512, help="Image dimension")
+    parser.add_argument("dimension", nargs='?', const=256, type=int, default=256, help="Image dimension")
 
     return parser.parse_args()
 

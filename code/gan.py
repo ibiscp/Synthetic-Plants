@@ -131,11 +131,11 @@ class GAN():
 
     def predict_generator(self, noise):
 
-        samples_batch = 4
+        # samples_batch = self.batch_size
         samples = []
 
-        for i in range(math.ceil(len(noise)/samples_batch)):
-            n = noise[i*samples_batch:min((i+1)*samples_batch, len(noise))]
+        for i in range(math.ceil(len(noise)/self.batch_size)):
+            n = noise[i*self.batch_size:min((i+1)*self.batch_size, len(noise))]
             output = self.gan.generator.predict(n)
             samples.append(output)
 
@@ -200,7 +200,7 @@ class GAN():
 
             ## Run metrics and save model
             # Select true images
-            test_samples = 32
+            test_samples = 128
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, repeat=True)
@@ -226,8 +226,9 @@ class GAN():
             summary_writer.add_summary(summary, global_step=self.epoch)
 
             # Save model
-            self.gan.save(self.model_dir, self.epoch)
-            self.save_checkpoint()
+            if (epoch + 1) % 10 == 0:
+                self.gan.save(self.model_dir, self.epoch)
+                self.save_checkpoint()
 
         return score
 

@@ -126,11 +126,19 @@ class DCGAN():
         self.g_loss = self.combined.train_on_batch(noise, valid)
 
     def load(self, dir, version):
-        self.generator.load_weights(dir + 'generator_' + str(version) + '.h5')
-        self.discriminator.load_weights(dir + 'discriminator_' + str(version) + '.h5')
-        self.combined.load_weights(dir + 'combined_' + str(version) + '.h5')
+        # self.generator.load_weights(dir + 'generator_' + str(version) + '.h5')
+        # self.discriminator.load_weights(dir + 'discriminator_' + str(version) + '.h5')
+        # self.combined.load_weights(dir + 'combined_' + str(version) + '.h5')
+
+        self.generator.load_weights(dir + 'generator' + '.h5')
+        self.discriminator.load_weights(dir + 'discriminator' + '.h5')
+        self.combined.load_weights(dir + 'combined' + '.h5')
 
     def save(self, dir, version):
-        self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
-        self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
-        self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
+        # self.generator.save_weights(dir + 'generator_' + str(version) + '.h5')
+        # self.discriminator.save_weights(dir + 'discriminator_' + str(version) + '.h5')
+        # self.combined.save_weights(dir + 'combined_' + str(version) + '.h5')
+
+        self.generator.save_weights(dir + 'generator' + '.h5')
+        self.discriminator.save_weights(dir + 'discriminator' + '.h5')
+        self.combined.save_weights(dir + 'combined' + '.h5')

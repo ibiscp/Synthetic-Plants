@@ -7,7 +7,7 @@ from help import *
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets_512/', help="Name of the dataset path to use")
+    parser.add_argument("dataset_path", nargs='?', default='../dataset/SugarBeets_128/', help="Name of the dataset path to use")
 
     return parser.parse_args()
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/')
 
     # Define the base grid search parameters
-    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [4]}
+    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [512]}
 
     # DCGAN
     DCGAN = {'g_lr': [0.0002], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_beta_1': [0.5]}
