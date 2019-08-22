@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 # from matplotlib.figure import Figure
 import matplotlib.image as mpimg
 from PIL import Image
+import math
 
 # Save dictionary to file
 def save(obj, name):
@@ -186,7 +187,8 @@ def calculate_gold_metrics():
 
     return score
 
-
+def isPowerOfTwo(n):
+    return (math.ceil(math.log2(n)) == math.floor(math.log2(n)))
 
 # calculate_gold_metrics()
 # generate_graphs('../resources/wgangp/')
