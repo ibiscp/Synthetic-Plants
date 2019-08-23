@@ -146,7 +146,7 @@ def load_dataset_list(directory):
 # Input:
 #   - files: list of files
 #   - repeat: repeat third chanel
-def load_data(files, repeat=False):
+def load_data(files, repeat=False, scale=False):
     data = []
     for file in files:
         img = cv2.imread(file, 0)
@@ -155,7 +155,8 @@ def load_data(files, repeat=False):
     data = np.asarray(data, dtype='uint8')
 
     # Rescale
-    # data = data / 127.5 - 1.
+    if scale:
+        data = data / 127.5 - 1.
     data = np.expand_dims(data, axis=3)
 
     if repeat:

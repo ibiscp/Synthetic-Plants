@@ -158,7 +158,7 @@ class GAN():
 
             files = [self.train_dataset[i] for i in batch_ids]
 
-            data = load_data(files)
+            data = load_data(files, scale=True)
 
             yield data
 
