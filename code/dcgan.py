@@ -30,7 +30,7 @@ class DCGAN():
 
         # Possible parameters
         self.startingSize = 8
-        self.outputFilter = 32
+        self.outputFilter = 8
         self.kernel_size = 3
 
         self.upSamplingLayer = int(math.log2(self.img_rows) - math.log2(self.startingSize))
@@ -44,7 +44,7 @@ class DCGAN():
 
         model = Sequential()
 
-        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 2))
+        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 1))
         model.add(Dense(starting * self.startingSize ** 2, activation="relu", input_dim=self.latent_dim))
         model.add(Reshape((self.startingSize, self.startingSize, starting)))
         model.add(BatchNormalization(momentum=0.8))
@@ -79,7 +79,8 @@ class DCGAN():
 
         # 128 -> 64 -> 32 -> 16 -> 8
         for i in range(self.upSamplingLayer):
-            model.add(Conv2D(self.outputFilter * (2 ** i), kernel_size=self.kernel_size, strides=2, padding="same"))  # 128 -> 64
+            # print(self.outputFilter * (2 ** i))
+            model.add(Conv2D(self.outputFilter * (2 ** (i+1)), kernel_size=self.kernel_size, strides=2, padding="same"))  # 128 -> 64
             # model.add(ZeroPadding2D(padding=((0, 1), (0, 1))))
             model.add(LeakyReLU(alpha=0.2))
             model.add(Dropout(0.25))
