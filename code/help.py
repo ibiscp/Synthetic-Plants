@@ -155,7 +155,7 @@ def load_data(files, repeat=False):
     data = np.asarray(data, dtype='uint8')
 
     # Rescale
-    data = data / 127.5 - 1.
+    # data = data / 127.5 - 1.
     data = np.expand_dims(data, axis=3)
 
     if repeat:

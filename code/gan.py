@@ -204,6 +204,8 @@ class GAN():
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, repeat=True)
+            # print(np.max(true))
+            # print(np.min(true))
 
             # Select false images
             noise = np.random.normal(0, 1, (test_samples, self.latent_dim))
@@ -211,6 +213,8 @@ class GAN():
             false = np.sign(false)
             false = (0.5 * false + 0.5) * 255
             false = np.repeat(false, 3, 3)
+            # print(np.max(false))
+            # print(np.min(false))
 
             score = metrics.compute_score(true, false)
             self.metrics.append(score)
