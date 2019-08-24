@@ -22,7 +22,7 @@ if __name__ == '__main__':
     base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [64]}
 
     # DCGAN
-    DCGAN = {'g_lr': [0.0002], 'g_ld': [0.015], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_ld': [0.015], 'd_beta_1': [0.5]}
+    DCGAN = {'g_lr': [0.0002], 'g_ld': [0.001], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_ld': [0.001], 'd_beta_1': [0.5]}
     DCGAN.update(base)
 
     # WGANGP

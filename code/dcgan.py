@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.layers import LeakyReLU
-from tensorflow.keras.layers import UpSampling2D, Conv2D
+from tensorflow.keras.layers import UpSampling2D, Conv2D, GaussianNoise
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 import numpy as np
@@ -73,6 +73,9 @@ class DCGAN():
     def discriminator(self):
 
         model = Sequential()
+
+        # add Gaussian noise to prevent Discriminator overfitting
+        # model.add(GaussianNoise(0.2, input_shape=self.img_shape))
 
         model.add(Conv2D(self.outputFilter, kernel_size=self.kernel_size, strides=2, input_shape=self.img_shape, padding="same"))  # 256 -> 128
         model.add(LeakyReLU(alpha=0.2))

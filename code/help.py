@@ -67,7 +67,8 @@ def generate_graphs(directory, test_dataset):
     metrics = metrics['metrics']
 
     # List of metrics
-    names = ['emd', 'fid', 'inception', 'knn', 'mmd', 'mode']
+    # names = ['emd', 'fid', 'inception', 'knn', 'mmd', 'mode']
+    names = ['emd', 'fid', 'inception', 'mmd', 'mode']
 
     emd = []
     fid = []
@@ -83,8 +84,8 @@ def generate_graphs(directory, test_dataset):
         mmd.append(m.mmd)
         mode.append(m.mode)
 
-    metrics = [emd, fid, inception, knn, mmd, mode]
-    num_metrics = len(metrics)
+    metrics = {'emd': emd, 'fid': fid, 'inception': inception, 'knn': knn, 'mmd': mmd, 'mode': mode}
+    num_metrics = len(names)
     epochs = len(emd)
 
     frames = []
@@ -107,8 +108,8 @@ def generate_graphs(directory, test_dataset):
 
         for i in range(num_metrics):
             horizontal = getattr(gold_metrics, names[i])
-            max_ = max(max(metrics[i]), horizontal)
-            min_ = min(min(metrics[i]), horizontal)
+            max_ = max(max(metrics[names[i]]), horizontal)
+            min_ = min(min(metrics[names[i]]), horizontal)
             offset = (max_ - min_) * 0.1
 
             # ax = fig.add_subplot(num_metrics, 1, i + 1)
@@ -117,7 +118,7 @@ def generate_graphs(directory, test_dataset):
             ax[i].set_ylim([min_ - offset, max_ + offset])
             ax[i].set_ylabel(names[i])
             ax[i].yaxis.set_label_position("right")
-            ax[i].plot(metrics[i][:epoch])
+            ax[i].plot(metrics[names[i]][:epoch])
 
             if i != num_metrics-1:
                 ax[i].axes.get_xaxis().set_visible(False)
@@ -194,7 +195,3 @@ def calculate_gold_metrics(test_dataset):
 
 def isPowerOfTwo(n):
     return (math.ceil(math.log2(n)) == math.floor(math.log2(n)))
-
-# calculate_gold_metrics()
-# generate_graphs('../resources/wgangp/')
-# create_gif('../resources/DCGAN-batch_size-128-d_beta_1-0.5-d_lr-0.0002-epochs-100-g_beta_1-0.5-g_lr-0.0002-latent_dim-100/')
