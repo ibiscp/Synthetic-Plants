@@ -19,10 +19,10 @@ if __name__ == '__main__':
     test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/')
 
     # Define the base grid search parameters
-    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [32]}
+    base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [64]}
 
     # DCGAN
-    DCGAN = {'g_lr': [0.0002], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_beta_1': [0.5]}
+    DCGAN = {'g_lr': [0.0002], 'g_ld': [0.015], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_ld': [0.015], 'd_beta_1': [0.5]}
     DCGAN.update(base)
 
     # WGANGP

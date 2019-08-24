@@ -8,6 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import numpy as np
 from help import *
 import math
+import tensorflow.keras.backend as K
 
 # Remove warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -30,7 +31,7 @@ class DCGAN():
 
         # Possible parameters
         self.startingSize = 8
-        self.outputFilter = 8
+        self.outputFilter = 16
         self.kernel_size = 3
 
         self.upSamplingLayer = int(math.log2(self.img_rows) - math.log2(self.startingSize))
@@ -89,7 +90,7 @@ class DCGAN():
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
-        model.compile(loss='binary_crossentropy', optimizer=Adam(self.d_lr, self.d_beta_1), metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=Adam(lr=self.d_lr, beta_1=self.d_beta_1), metrics=['accuracy'])
 
         # print("\nDiscriminator")
         # model.summary()
@@ -106,7 +107,7 @@ class DCGAN():
 
         gan = Model(inputs=gan_input, outputs=gan_output)
 
-        gan.compile(loss='binary_crossentropy', optimizer=Adam(self.g_lr, self.g_beta_1))
+        gan.compile(loss='binary_crossentropy', optimizer=Adam(lr=self.g_lr, beta_1=self.g_beta_1))
 
         self.discriminator.trainable = True
 
@@ -135,6 +136,11 @@ class DCGAN():
 
         # TRAIN GENERATOR
         self.g_loss = self.combined.train_on_batch(noise, valid)
+
+    def reduce_lr(self, epoch):
+        K.set_value(self.discriminator.optimizer.lr, 1/(1+self.d_ld*epoch)*K.eval(self.discriminator.optimizer.lr))
+        K.set_value(self.combined.optimizer.lr, 1/(1+self.g_ld*epoch)*K.eval(self.combined.optimizer.lr))
+
 
     def load(self, dir, version):
         # self.generator.load_weights(dir + 'generator_' + str(version) + '.h5')

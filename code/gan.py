@@ -191,6 +191,8 @@ class GAN():
                 print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
                 self.batch += 1
 
+            self.gan.reduce_lr(epoch)
+
             # Save epoch summary
             summary = tf.Summary()
             summary.value.add(tag="wallclocktime", simple_value=wallclocktime)
