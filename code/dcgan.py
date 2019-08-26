@@ -31,7 +31,7 @@ class DCGAN():
 
         # Possible parameters
         self.startingSize = 8
-        self.outputFilter = 16
+        self.outputFilter = 32
         self.kernel_size = 3
 
         self.upSamplingLayer = int(math.log2(self.img_rows) - math.log2(self.startingSize))

@@ -202,7 +202,7 @@ class GAN():
 
             ## Run metrics and save model
             # Select true images
-            test_samples = 128
+            test_samples = 32
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, repeat=True)
