@@ -45,7 +45,7 @@ class DCGAN():
 
         model = Sequential()
 
-        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 1))
+        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 2))
         model.add(Dense(starting * self.startingSize ** 2, activation="relu", input_dim=self.latent_dim))
         model.add(Reshape((self.startingSize, self.startingSize, starting)))
         model.add(BatchNormalization(momentum=0.8))
