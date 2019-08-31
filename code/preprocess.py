@@ -10,9 +10,9 @@ import random
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../dataset/Bonn 2016/', help="Dataset path")
-    parser.add_argument("plant_type", nargs='?', default='SugarBeets', help="Output path")
-    parser.add_argument("dimension", nargs='?', const=256, type=int, default=256, help="Image dimension")
+    parser.add_argument("--dataset_path", type=str, default='../../plants-dataset/Bonn 2016/', help="Dataset path")
+    parser.add_argument("--plant_type", type=str, default='SugarBeets', help="Output path")
+    parser.add_argument("--dimension", type=int, default=64, help="Image dimension")
 
     return parser.parse_args()
 
@@ -31,7 +31,7 @@ def rotate_image(img, angle, dim):
 # Return list of augmented images given one single image
 def augment_image(img, dim):
     flip_list = [-1, 0, 1]
-    rotation_list = list(range(0, 360, 10))
+    rotation_list = list(range(0, 360, 90))
     images = []
 
     for flip in flip_list:
@@ -58,7 +58,7 @@ def find_max_radius(contours, stem_x, stem_y):
 
     return dist
 
-def generate_dataset(path, output_path, dim = 512, type='SugarBeets', smooth = False, save_images=False):
+def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = False, save_images=False):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
@@ -152,24 +152,28 @@ def generate_dataset(path, output_path, dim = 512, type='SugarBeets', smooth = F
                             radius = int(radius * 1.1)
 
                             # Final image
-                            finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalMask)
-                            finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalMask)
+                            finalRgb = rgbimg #cv2.bitwise_and(rgbimg, rgbimg, mask=finalMask)
+                            finalNir = nirimg #cv2.bitwise_and(nirimg, nirimg, mask=finalMask)
 
                             right = stem_x + radius
                             left = stem_x - radius
                             top = stem_y + radius
                             bot = stem_y - radius
 
-                            if bot > 0 and top < shape[0] and left > 0 and right < shape[1] and radius > dim/2:
+                            if bot > 0 and top < shape[0] and left > 0 and right < shape[1] and radius >= dim/2 and radius < 128:#dim:
                                 # Crop images
                                 cropRgb = finalRgb[bot:top, left:right, :]
                                 cropNir = finalNir[bot:top, left:right]
                                 cropMask = finalMask[bot:top, left:right]
 
+                                # cv2.imwrite(
+                                #     output_path + 'train/mask/' + imageName + '_' + str(id) + '_' + '.png',
+                                #     cropMask)
+
                                 # Resize image
                                 cropRgb = cv2.resize(cropRgb, (dim, dim), interpolation=cv2.INTER_AREA)
                                 cropNir = cv2.resize(cropNir, (dim, dim), interpolation=cv2.INTER_AREA)
-                                cropMask = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_AREA)
+                                cropMask = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_NEAREST)
 
                                 # Augment images
                                 cropRgb_ = augment_image(cropRgb, dim)
