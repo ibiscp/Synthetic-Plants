@@ -7,6 +7,7 @@ from glob import glob
 from tqdm import tqdm
 from ast import literal_eval
 import cv2
+import pickle
 
 class Image_data:
 
@@ -121,6 +122,16 @@ class Image_data:
 
         print()
 
+# Save dictionary to file
+def save(obj, name):
+    with open(name, 'wb') as f:
+        pickle.dump(obj, f)
+
+# Load dictionary from file
+def load(name):
+    with open(name, 'rb') as f:
+        return pickle.load(f)
+
 def load_segmap(dataset_path, image_path, img_width, img_height, img_channel):
     segmap_label_path = os.path.join(dataset_path, 'segmap_label.txt')
 
@@ -193,12 +204,18 @@ def load_style_image(image_path, img_width, img_height, img_channel):
     return img
 
 # Merge rgb image with nir summing nir in each channel
-def merge_images(x):
+def merge_images(x, style):
     rgb = x[:,:,:,0:3]
     nir = np.expand_dims(x[:,:,:,3], 3)
-    merged = np.add(rgb, nir) / 2
 
-    return merged
+    if style == 'rgb':
+        output = rgb
+    elif style == 'nir':
+        output = nir
+    else:
+        output = np.add(rgb, nir) / 2
+
+    return output
 
 # Convert to the range [-1, 1]
 def preprocessing(x):

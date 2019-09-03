@@ -14,14 +14,13 @@ import matplotlib.gridspec as gridspec
 import sys
 sys.path.append('../')
 from pytorchMetrics import *
-from help import *
 
 GIF_MATRIX = 5
 
 class SPADE(object):
     def __init__(self, sess, args):
 
-        self.model_name = 'SPADE_4th'
+        self.model_name = 'SPADE_load_test'
 
         self.sess = sess
         self.checkpoint_dir = args.checkpoint_dir
@@ -79,12 +78,10 @@ class SPADE(object):
         self.sample_dir = os.path.join(args.sample_dir, self.model_dir)
         check_folder(self.sample_dir)
 
-
         self.dataset_path = os.path.join('../../../plants-dataset/', self.dataset_name)
-        # self.gif_dir = os.path.join(args.sample_dir, self.model_dir, '/gif')
-        # check_folder(self.gif_dir)
 
-        self.metrics = []
+        self.metrics_rgb = []
+        self.metrics_nir = []
 
 
         print()
@@ -456,19 +453,17 @@ class SPADE(object):
         self.saver = tf.train.Saver(max_to_keep=20)
 
         # summary writer
-        self.writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir, self.sess.graph)
+        self.writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir, graph=self.sess.graph, max_queue=1)
 
         # restore check-point if it exits
         could_load, checkpoint_counter = self.load(self.checkpoint_dir)
         if could_load:
-            start_epoch = (int)(checkpoint_counter / self.iteration)
-            start_batch_id = checkpoint_counter - start_epoch * self.iteration
-            counter = checkpoint_counter
+            start_epoch = checkpoint_counter + 1
+            batch_id = start_epoch * self.iteration
             print(" [*] Load SUCCESS")
         else:
             start_epoch = 0
-            start_batch_id = 0
-            counter = 1
+            batch_id = 0
             print(" [!] Load failed...")
 
         # loop for epoch
@@ -480,84 +475,72 @@ class SPADE(object):
             if self.decay_flag:
                 # lr = self.init_lr * pow(0.5, epoch // self.decay_epoch)
                 lr = self.init_lr if epoch < self.decay_epoch else self.init_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
-            for idx in range(start_batch_id, self.iteration):
+            for batch in range(self.iteration):
                 train_feed_dict = {
                     self.lr: lr
                 }
 
                 # Update D
                 _, d_loss, summary_str = self.sess.run([self.D_optim, self.d_loss, self.D_loss], feed_dict=train_feed_dict)
-                self.writer.add_summary(summary_str, counter)
+                self.writer.add_summary(summary_str, batch_id)
 
                 # Update G
                 g_loss = None
-                if (counter - 1) % self.n_critic == 0:
+                if batch_id % self.n_critic == 0:
                     real_x_images, real_x_segmap, fake_x_images, random_fake_x_images, _, g_loss, summary_str = self.sess.run(
                         [self.real_x, self.real_x_segmap, self.fake_x, self.random_fake_x,
-                         self.G_optim,
-                         self.g_loss, self.G_loss], feed_dict=train_feed_dict)
+                         self.G_optim, self.g_loss, self.G_loss], feed_dict=train_feed_dict)
 
-                    self.writer.add_summary(summary_str, counter)
+                    self.writer.add_summary(summary_str, batch_id)
                     past_g_loss = g_loss
 
                 # display training status
-                counter += 1
                 if g_loss == None:
                     g_loss = past_g_loss
-                print("Epoch: [%2d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
-                    epoch, idx, self.iteration, time.time() - start_time, d_loss, g_loss))
+                print("Epoch: [%4d/%4d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
+                    epoch+1, self.epoch, batch+1, self.iteration, time.time() - start_time, d_loss, g_loss))
 
-                # if np.mod(idx + 1, self.print_freq) == 0:
-                #
-                #     save_images(real_x_images, [self.batch_size, 1],
-                #                './{}/real_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
-                #
-                #     save_images(real_x_segmap, [self.batch_size, 1],
-                #                 './{}/real_segmap_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
-                #
-                #     save_images(fake_x_images, [self.batch_size, 1],
-                #                 './{}/fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx+1))
-                #
-                #     save_images(random_fake_x_images, [self.batch_size, 1],
-                #                 './{}/random_fake_{:03d}_{:05d}.png'.format(self.sample_dir, epoch, idx + 1))
+                batch_id += 1
 
+            ######### Run metrics and save model ##########
 
-                # if np.mod(counter - 1, self.save_freq) == 0:
-                #     self.save(self.checkpoint_dir, counter)
-
-
-            ## Run metrics and save model
+            #### RGB
             # Select true images
             test_samples = 32
-            true = self.get_images(type=True, number=test_samples)
+            true = self.get_images(type=True, number=test_samples, style='rgb')
             # Select false images
-            false = self.get_images(type=False, number=test_samples)
-
+            false = self.get_images(type=False, number=test_samples, style='rgb')
             score = metrics.compute_score(true, false)
-            self.metrics.append(score)
+            self.metrics_rgb.append(score)
 
-            # # Save evaluation summary
-            # summary = tf.Summary()
-            # summary.value.add(tag="emd", simple_value=score.emd)
-            # summary.value.add(tag="fid", simple_value=score.fid)
-            # summary.value.add(tag="inception", simple_value=score.inception)
-            # summary.value.add(tag="knn", simple_value=score.knn)
-            # summary.value.add(tag="mmd", simple_value=score.mmd)
-            # summary.value.add(tag="mode", simple_value=score.mode)
-            # summary_writer.add_summary(summary, global_step=self.epoch)
+            #### NIR
+            # Select true images
+            true = self.get_images(type=True, number=test_samples, style='nir')
+            # Select false images
+            false = self.get_images(type=False, number=test_samples, style='nir')
+            score = metrics.compute_score(true, false)
+            self.metrics_nir.append(score)
 
+            # Save evaluation summary
+            emd = tf.summary.scalar("emd", score.emd)
+            fid = tf.summary.scalar("fid", score.fid)
+            inception = tf.summary.scalar("inception", score.inception)
+            knn = tf.summary.scalar("knn", score.knn)
+            mmd = tf.summary.scalar("mmd", score.mmd)
+            mode = tf.summary.scalar("mode", score.mode)
+
+            metrics_summary_list = [emd, fid, inception, knn, mmd, mode]
+            metrics_ = tf.summary.merge(metrics_summary_list)
+
+            self.writer.add_summary(self.sess.run(metrics_), batch_id)
 
             # Get images and plot gif file
             rgb_images, nir_images = self.get_gif_images()
             self.plot_gif(rgb_images, epoch)
             self.plot_gif(nir_images, epoch, gray=True)
 
-            # After an epoch, start_batch_id is set to zero
-            # non-zero value is only for the first epoch after loading pre-trained model
-            start_batch_id = 0
-
             # save model for final step
-            self.save(self.checkpoint_dir, counter)
+            self.save(self.checkpoint_dir, epoch)
 
     @property
     def model_dir(self):
@@ -593,7 +576,7 @@ class SPADE(object):
         self.saver.save(self.sess, os.path.join(checkpoint_dir, self.model_name + '.model'), global_step=step)
 
         # Save pickle
-        save(self.metrics, os.path.join(checkpoint_dir, '%d.pkl' % step))
+        save([self.metrics_rgb, self.metrics_nir], os.path.join(checkpoint_dir, 'metrics.pkl'))
 
     def load(self, checkpoint_dir):
         print(" [*] Reading checkpoints...")
@@ -606,7 +589,7 @@ class SPADE(object):
             counter = int(ckpt_name.split('-')[-1])
 
             # Load picle
-            self.metrics = load(os.path.join(checkpoint_dir, '%d.pkl' % counter))
+            [self.metrics_rgb, self.metrics_nir] = load(os.path.join(checkpoint_dir, 'metrics.pkl'))
 
             print(" [*] Success to read {}".format(ckpt_name))
             return True, counter
@@ -616,17 +599,17 @@ class SPADE(object):
 
 
     # Get images, or from dataset, or generated, with random style or not
-    def get_images(self, type, number, style=None):
+    def get_images(self, type, number, style):
 
         list_images = []
 
         for i in range(number):
             # Get true images
             if type == True:
-                img = merge_images(self.sess.run(self.real_x))
+                img = merge_images(self.sess.run(self.real_x), style)
 
             else:
-                img = merge_images(self.sess.run(self.random_fake_x))
+                img = merge_images(self.sess.run(self.random_fake_x), style)
 
             list_images.append(img)
 

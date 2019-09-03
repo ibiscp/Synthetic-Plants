@@ -9,16 +9,16 @@ def parse_args():
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
     parser.add_argument('--dataset', type=str, default='SugarBeets_128', help='dataset_name')
 
-    parser.add_argument('--epoch', type=int, default=1000, help='The number of epochs to run')
+    parser.add_argument('--epoch', type=int, default=150, help='The number of epochs to run')
     # parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
-    parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
+    parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
     parser.add_argument('--print_freq', type=int, default=1, help='The number of image_print_freq')
     parser.add_argument('--save_freq', type=int, default=1, help='The number of ckpt_save_freq')
     parser.add_argument('--decay_flag', type=str2bool, default=True, help='The decay_flag')
-    parser.add_argument('--decay_epoch', type=int, default=50, help='decay epoch')
+    parser.add_argument('--decay_epoch', type=int, default=100, help='decay epoch')
 
     parser.add_argument('--lr', type=float, default=0.0002, help='The learning rate')
     parser.add_argument('--TTUR', type=str2bool, default=True, help='Use TTUR training scheme')
@@ -33,8 +33,8 @@ def parse_args():
     parser.add_argument('--kl_weight', type=float, default=0.05, help='Weight about kl-divergence')
 
     parser.add_argument('--gan_type', type=str, default='hinge', help='gan / lsgan / hinge / wgan-gp / wgan-lp / dragan')
-    # parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
-    parser.add_argument('--ch', type=int, default=32, help='base channel number per layer')
+    parser.add_argument('--ch', type=int, default=64, help='base channel number per layer')
+    # parser.add_argument('--ch', type=int, default=32, help='base channel number per layer')
 
 
     parser.add_argument('--n_dis', type=int, default=4, help='The number of discriminator layer')
@@ -50,8 +50,8 @@ def parse_args():
                         help="If 'more', adds upsampling layer between the two middle resnet blocks. "
                              "If 'most', also add one more upsampling + resnet layer at the end of the generator")
 
-    parser.add_argument('--img_height', type=int, default=128, help='The height size of image')
-    parser.add_argument('--img_width', type=int, default=128, help='The width size of image ')
+    parser.add_argument('--img_height', type=int, default=256, help='The height size of image')
+    parser.add_argument('--img_width', type=int, default=256, help='The width size of image ')
     parser.add_argument('--img_ch', type=int, default=4, help='The size of image channel')
     parser.add_argument('--segmap_ch', type=int, default=1, help='The size of segmap channel')
     parser.add_argument('--augment_flag', type=str2bool, default=False, help='Image augmentation use or not')
