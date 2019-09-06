@@ -5,21 +5,12 @@ from wgangp import WGANGP
 # Other libraries
 import os
 import numpy as np
-import cv2
 import tensorflow as tf
-import matplotlib
-matplotlib.use("WebAgg")
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-# import tensorflow.contrib.gan as tfgan
 import time
-# import gc
 from glob import glob
 import re
 from help import *
 import math
-# from operator import itemgetter
-
 import sys
 sys.path.append('../')
 from pytorchMetrics import *
@@ -27,8 +18,6 @@ from utils import *
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-GIF_MATRIX = 5
 
 class GAN():
     def __init__(self, architecture, train_dataset, test_dataset, shape, **kwargs):
@@ -114,27 +103,6 @@ class GAN():
         for key, value in data.items():
             setattr(self, key, value)
 
-    def plot_gif(self, epoch):
-
-        gen_imgs = self.predict_generator(self.gif_generator)
-        gen_imgs = np.sign(gen_imgs)
-        gen_imgs = (0.5 * gen_imgs + 0.5) * 255
-
-        plt.figure(figsize=(GIF_MATRIX*3, GIF_MATRIX*3))
-        gs1 = gridspec.GridSpec(GIF_MATRIX, GIF_MATRIX)
-        gs1.update(wspace=0.025, hspace=0.025)
-        for i in range(gen_imgs.shape[0]):
-            ax = plt.subplot(gs1[i])
-            ax.imshow(gen_imgs[i,:,:,0], cmap='gray', interpolation='nearest')
-            ax.axis('off')
-            ax.set_aspect('equal')
-            ax.axes.get_xaxis().set_visible(False)
-            ax.axes.get_yaxis().set_visible(False)
-            ax.set_frame_on(False)
-
-        plt.savefig(self.gif_dir + "%d.png" % epoch, bbox_inches='tight', pad_inches=0.025)
-        plt.close()
-
     def predict_generator(self, noise):
 
         # samples_batch = self.batch_size
@@ -164,11 +132,11 @@ class GAN():
 
             files = [self.train_dataset[i] for i in batch_ids]
 
-            data = load_data(files, scale=True)
+            data = load_data(files, type='mask', scale=True)
 
             yield data
 
-    def train(self, samples=2048):
+    def train(self, samples=1):#2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
@@ -204,14 +172,18 @@ class GAN():
             summary.value.add(tag="wallclocktime", simple_value=wallclocktime)
             summary_writer.add_summary(summary, global_step=self.epoch)
 
-            self.plot_gif(epoch)
+            # Plot gif
+            gen_imgs = self.predict_generator(self.gif_generator)
+            gen_imgs = np.sign(gen_imgs)
+            gen_imgs = postprocessing(gen_imgs)
+            plot_gif(gen_imgs, epoch, self.gif_dir, type='mask')
 
             ## Run metrics and save model
             # Select true images
-            test_samples = 32
+            test_samples = 128
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
-            true = load_data(files, repeat=True)
+            true = load_data(files, type='mask', repeat=True)
             # print(np.max(true))
             # print(np.min(true))
 
@@ -219,7 +191,7 @@ class GAN():
             noise = np.random.normal(0, 1, (test_samples, self.latent_dim))
             false = self.predict_generator(noise)
             false = np.sign(false)
-            false = (0.5 * false + 0.5) * 255
+            false = postprocessing(false)
             false = np.repeat(false, 3, 3)
             # print(np.max(false))
             # print(np.min(false))
@@ -247,12 +219,12 @@ class GAN():
         self.save_checkpoint()
 
         # Create gif
-        create_gif(self.gif_dir, self.model_dir, self.test_dataset)
+        create_gif(self.gif_dir, self.metrics, self.test_dataset, type='mask')
 
         # Print samples
         gen_imgs = self.predict_generator(self.gif_generator)
         gen_imgs = np.sign(gen_imgs)
-        gen_imgs = (0.5 * gen_imgs + 0.5) * 255
+        gen_imgs = postprocessing(gen_imgs)
         gen_imgs = np.rint(gen_imgs).astype(int)
         gen_imgs = np.squeeze(gen_imgs, axis=3)
 

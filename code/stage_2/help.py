@@ -4,10 +4,12 @@ from scipy import misc
 import os, random
 import numpy as np
 from glob import glob
-from tqdm import tqdm
 from ast import literal_eval
 import cv2
-import pickle
+
+import sys
+sys.path.append('../')
+from utils import *
 
 class Image_data:
 
@@ -19,11 +21,13 @@ class Image_data:
         self.augment_flag = augment_flag
 
         self.dataset_path = dataset_path
-        self.img_dataset_path = os.path.join(dataset_path, 'train/rgb')
-        self.segmap_dataset_path = os.path.join(dataset_path, 'train/mask')
-        self.nir_dataset_path = os.path.join(dataset_path, 'train/nir')
+        self.img_dataset_path = os.path.join(dataset_path, 'train/rgb/')
+        self.segmap_dataset_path = os.path.join(dataset_path, 'train/mask/')
+        self.nir_dataset_path = os.path.join(dataset_path, 'train/nir/')
 
-        self.segmap_test_dataset_path = os.path.join(dataset_path, 'test/mask')
+        self.img_test_dataset_path = os.path.join(dataset_path, 'test/rgb/')
+        self.segmap_test_dataset_path = os.path.join(dataset_path, 'test/mask/')
+        self.nir_test_dataset_path = os.path.join(dataset_path, 'test/nir/')
 
         self.image = []
         self.color_value_dict = {}
@@ -122,16 +126,6 @@ class Image_data:
 
         print()
 
-# Save dictionary to file
-def save(obj, name):
-    with open(name, 'wb') as f:
-        pickle.dump(obj, f)
-
-# Load dictionary from file
-def load(name):
-    with open(name, 'rb') as f:
-        return pickle.load(f)
-
 def load_segmap(dataset_path, image_path, img_width, img_height, img_channel):
     segmap_label_path = os.path.join(dataset_path, 'segmap_label.txt')
 
@@ -209,24 +203,7 @@ def merge_images(x):
     nir = np.expand_dims(x[:,:,:,3], 3)
     nir = np.repeat(nir, 3, axis=3)
 
-    # if style == 'rgb':
-    #     output = rgb
-    # elif style == 'nir':
-    #     output = nir
-    # else:
-    #     output = np.add(rgb, nir) / 2
-
     return rgb, nir
-
-# Convert to the range [-1, 1]
-def preprocessing(x):
-    x = x/127.5 - 1 # -1 ~ 1
-    return x
-
-# Convert to the range [0, 255]
-def postprocessing(x):
-    x = ((x + 1) / 2) * 255.0
-    return x
 
 def augmentation(image, segmap, augment_height, augment_width):
     seed = random.randint(0, 2 ** 31 - 1)

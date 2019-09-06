@@ -2,6 +2,10 @@ from argparse import ArgumentParser
 from gridSearch import *
 from help import *
 
+import sys
+sys.path.append('../')
+from utils import *
+
 
 # '../dataset/SugarBeets/train/mask/'
 
@@ -15,8 +19,8 @@ if __name__ == '__main__':
     args = parse_args()
 
     # Load dataset list
-    train_dataset, shape = load_dataset_list(directory=args.dataset_path + 'train/mask/')
-    test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/')
+    train_dataset, shape = load_dataset_list(directory=args.dataset_path + 'train/mask/', type='mask')
+    test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/', type='mask')
 
     # Define the base grid search parameters
     base = {'epochs': [1], 'latent_dim': [100], 'batch_size': [1]}

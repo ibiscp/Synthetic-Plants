@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow.contrib as tf_contrib
-from utils import pytorch_xavier_weight_factor, pytorch_kaiming_weight_factor
+from help import pytorch_xavier_weight_factor, pytorch_kaiming_weight_factor
 
 ##################################################################################
 # Initialization

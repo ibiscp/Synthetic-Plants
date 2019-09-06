@@ -1,5 +1,9 @@
-from SPADE import SPADE
+from spade import spade
 import argparse
+from help import *
+
+import sys
+sys.path.append('../')
 from utils import *
 
 
@@ -13,7 +17,6 @@ def parse_args():
 
     parser.add_argument('--epoch', type=int, default=150, help='The number of epochs to run')
     parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
-    # parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
@@ -26,7 +29,7 @@ def parse_args():
     parser.add_argument('--TTUR', type=str2bool, default=True, help='Use TTUR training scheme')
 
     parser.add_argument('--num_style', type=int, default=3, help='number of styles to sample')
-    parser.add_argument('--guide_img', type=str, default='guide', help='Style guided image translation')
+    parser.add_argument('--guide_img', type=str, default='resources/guide', help='Style guided image translation')
 
     parser.add_argument('--ld', type=float, default=10.0, help='The gradient penalty lambda')
     parser.add_argument('--adv_weight', type=int, default=1, help='Weight about GAN')
@@ -66,6 +69,8 @@ def parse_args():
                         help='Directory name to save training logs')
     parser.add_argument('--gif_dir', type=str, default='resources/gif',
                         help='Directory name to save the samples on training')
+    parser.add_argument('--seed_dir', type=str, default='resources/seed',
+                        help='Directory name of the seed files')
 
     return check_args(parser.parse_args())
 
@@ -106,25 +111,25 @@ def main():
 
     # open session
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        gan = SPADE(sess, args)
+        gan = spade(sess, args)
 
         # build graph
         gan.build_model()
 
         # show network architecture
-        show_all_variables()
+        # show_all_variables()
 
         if args.phase == 'train' :
             gan.train()
             print(" [*] Training finished!")
 
-        if args.phase == 'random' :
-            gan.random_test()
-            print(" [*] Random test finished!")
-
-        if args.phase == 'guide' :
-            gan.guide_test()
-            print(" [*] Guide test finished")
+        # if args.phase == 'random' :
+        #     gan.random_test()
+        #     print(" [*] Random test finished!")
+        #
+        # if args.phase == 'guide' :
+        #     gan.guide_test()
+        #     print(" [*] Guide test finished")
 
 
 if __name__ == '__main__':

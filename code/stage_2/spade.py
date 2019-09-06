@@ -1,24 +1,19 @@
 from ops import *
-from utils import *
+from help import *
 import time
 from tensorflow.contrib.data import prefetch_to_device, shuffle_and_repeat, map_and_batch
 import numpy as np
-from tqdm import tqdm
 from vgg19_keras import VGGLoss
-import random
-
-import matplotlib
-matplotlib.use("WebAgg")
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+from glob import glob
 import sys
 sys.path.append('../')
 from pytorchMetrics import *
 from utils import *
 
-GIF_MATRIX = 5
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-class SPADE(object):
+class spade(object):
     def __init__(self, sess, args):
 
         self.model_name = 'SPADE_load_test'
@@ -78,6 +73,7 @@ class SPADE(object):
 
         self.gif_dir = os.path.join(args.gif_dir, self.model_dir)
         check_folder(self.gif_dir)
+        self.seed_dir = args.seed_dir
 
         self.dataset_path = os.path.join('../../../plants-dataset/', self.dataset_name)
 
@@ -120,31 +116,6 @@ class SPADE(object):
         print("# beta2 : ", self.beta2)
 
         print()
-
-    ##################################################################################
-    # Plot gif
-    ##################################################################################.
-
-    def plot_gif(self, images, epoch, gray=False):
-
-        plt.figure(figsize=(GIF_MATRIX*3, GIF_MATRIX*3))
-        gs1 = gridspec.GridSpec(GIF_MATRIX, GIF_MATRIX)
-        gs1.update(wspace=0.025, hspace=0.025)
-        for i in range(images.shape[0]):
-            ax = plt.subplot(gs1[i])
-            if gray:
-                ax.imshow(images[i,:,:], cmap='gray', vmin=0, vmax=255, interpolation='nearest')
-            else:
-                ax.imshow(images[i,:,:,:], vmin=0, vmax=255, interpolation='nearest')
-            ax.axis('off')
-            ax.set_aspect('equal')
-            ax.axes.get_xaxis().set_visible(False)
-            ax.axes.get_yaxis().set_visible(False)
-            ax.set_frame_on(False)
-
-        name = ("nir" if gray else "rgb") + "_%d.png" % epoch
-        plt.savefig(os.path.join(self.gif_dir, name), bbox_inches='tight', pad_inches=0.025)
-        plt.close()
 
     ##################################################################################
     # Generator
@@ -338,29 +309,29 @@ class SPADE(object):
         self.lr = tf.placeholder(tf.float32, name='learning_rate')
 
         """ Input Image"""
-        img_class = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_ch, self.dataset_path, self.augment_flag)
-        img_class.preprocess()
-
+        self.img_class = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_ch, self.dataset_path, self.augment_flag)
+        self.img_class.preprocess()
 
         # Create vector with gif images
-        self.gif_generator = random.sample(img_class.segmap_test, GIF_MATRIX ** 2)
+        self.gif_generator = glob(self.seed_dir + '/mask*.png')
+        self.gif_generator.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
 
 
-        self.dataset_num = len(img_class.image)
-        self.test_dataset_num = len(img_class.segmap_test)
+        self.dataset_num = len(self.img_class.image)
+        self.test_dataset_num = len(self.img_class.segmap_test)
 
 
-        img_and_segmap = tf.data.Dataset.from_tensor_slices((img_class.image, img_class.nir, img_class.segmap))
-        segmap_test = tf.data.Dataset.from_tensor_slices(img_class.segmap_test)
+        img_and_segmap = tf.data.Dataset.from_tensor_slices((self.img_class.image, self.img_class.nir, self.img_class.segmap))
+        segmap_test = tf.data.Dataset.from_tensor_slices(self.img_class.segmap_test)
 
 
         gpu_device = '/gpu:0'
         img_and_segmap = img_and_segmap.apply(shuffle_and_repeat(self.dataset_num)).apply(
-            map_and_batch(img_class.image_processing, self.batch_size, num_parallel_batches=16,
+            map_and_batch(self.img_class.image_processing, self.batch_size, num_parallel_batches=16,
                           drop_remainder=True)).apply(prefetch_to_device(gpu_device, self.batch_size))
 
         segmap_test = segmap_test.apply(shuffle_and_repeat(self.dataset_num)).apply(
-            map_and_batch(img_class.test_image_processing, batch_size=self.batch_size, num_parallel_batches=16,
+            map_and_batch(self.img_class.test_image_processing, batch_size=self.batch_size, num_parallel_batches=16,
                           drop_remainder=True)).apply(prefetch_to_device(gpu_device, self.batch_size))
 
         img_and_segmap_iterator = img_and_segmap.make_one_shot_iterator()
@@ -398,7 +369,7 @@ class SPADE(object):
         self.random_fake_x, _, _ = self.image_translate(segmap_img=self.real_x_segmap_test_onehot, random_style=True, reuse=True)
 
         """ Test """
-        self.test_segmap_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
+        self.test_segmap_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(self.img_class.color_value_dict)])
         self.random_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, random_style=True, reuse=True)
 
         self.test_guide_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, self.img_ch])
@@ -506,10 +477,10 @@ class SPADE(object):
             ######### Run metrics and save model ##########
 
             # Select true images
-            test_samples = 32
-            true_rgb, true_nir = self.get_images(type=True, number=test_samples, style='rgb')
+            test_samples = 128
+            true_rgb, true_nir = self.get_images(type=True, number=test_samples)
             # Select false images
-            false_rgb, false_nir = self.get_images(type=False, number=test_samples, style='rgb')
+            false_rgb, false_nir = self.get_images(type=False, number=test_samples)
 
             # Run metrics
             score = metrics.compute_score(true_rgb, false_rgb)
@@ -533,17 +504,23 @@ class SPADE(object):
 
             # Get images and plot gif file
             rgb_images, nir_images = self.get_gif_images()
-            self.plot_gif(rgb_images, epoch)
-            self.plot_gif(nir_images, epoch, gray=True)
+            plot_gif(rgb_images, epoch, self.gif_dir, type='rgb')
+            plot_gif(nir_images, epoch, self.gif_dir, type='nir')
 
             # save model for final step
             self.save(self.checkpoint_dir, epoch)
 
-        for i, img in enumerate(false_rgb):
-            imsave(img, os.path.join(self.samples, 'rgb_%d.png' % i))
+        for i, img in enumerate(rgb_images):
+            imsave(img, os.path.join(self.samples_dir, 'rgb_%d.png' % i))
 
-        for i, img in enumerate(false_nir):
-            imsave(img, os.path.join(self.samples, 'nir_%d.png' % i))
+        for i, img in enumerate(nir_images):
+            imsave(img, os.path.join(self.samples_dir, 'nir_%d.png' % i))
+
+        # Create gif
+        rgb_dataset, _ = load_dataset_list(self.img_class.img_test_dataset_path, type='rgb')
+        nir_dataset, _ = load_dataset_list(self.img_class.nir_test_dataset_path, type='nir')
+        create_gif(self.gif_dir, self.metrics_rgb, rgb_dataset, type='rgb')
+        create_gif(self.gif_dir, self.metrics_nir, nir_dataset, type='nir')
 
     @property
     def model_dir(self):
@@ -562,13 +539,11 @@ class SPADE(object):
             TTUR = ''
 
 
-        return "{}_{}_{}_{}_{}_{}_{}_{}_{}{}{}_{}".format(self.model_name, self.dataset_name,
+        return "{}_{}_{}_{}_{}_{}_{}_{}_{}{}{}_{}/".format(self.model_name, self.dataset_name,
                                                                    self.gan_type, n_dis, self.n_critic,
                                                                    self.adv_weight, self.vgg_weight, self.feature_weight,
                                                                    self.kl_weight,
                                                                    sn, TTUR, self.num_upsampling_layers)
-
-
 
     def save(self, checkpoint_dir, step):
         checkpoint_dir = os.path.join(checkpoint_dir, self.model_dir)
@@ -599,7 +574,6 @@ class SPADE(object):
         else:
             print(" [!] Failed to find a checkpoint")
             return False, 0
-
 
     # Get images, or from dataset, or generated, with random style or not
     def get_images(self, type, number):
