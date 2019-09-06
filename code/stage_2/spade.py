@@ -510,11 +510,12 @@ class spade(object):
             # save model for final step
             self.save(self.checkpoint_dir, epoch)
 
-        for i, img in enumerate(rgb_images):
-            imsave(img, os.path.join(self.samples_dir, 'rgb_%d.png' % i))
+            # Save images separately
+            for i, img in enumerate(rgb_images):
+                imsave(img, os.path.join(self.samples_dir, 'rgb_%d_%d.png' %(i, epoch)))
 
-        for i, img in enumerate(nir_images):
-            imsave(img, os.path.join(self.samples_dir, 'nir_%d.png' % i))
+            for i, img in enumerate(nir_images):
+                imsave(img, os.path.join(self.samples_dir, 'nir_%d_%d.png' %(i, epoch)))
 
         # Create gif
         rgb_dataset, _ = load_dataset_list(self.img_class.img_test_dataset_path, type='rgb')

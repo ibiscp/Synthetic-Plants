@@ -136,7 +136,7 @@ class GAN():
 
             yield data
 
-    def train(self, samples=1):#2048):
+    def train(self, samples=2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
@@ -214,6 +214,10 @@ class GAN():
                 self.gan.save(self.model_dir, self.epoch)
                 self.save_checkpoint()
 
+            # Save images separately
+            for i, img in enumerate(gen_imgs):
+                imsave(img, os.path.join(self.samples, 'mask_%d_%d.png' %(i, epoch)))
+
         # Save last model
         self.gan.save(self.model_dir, self.epoch)
         self.save_checkpoint()
@@ -227,10 +231,6 @@ class GAN():
         gen_imgs = postprocessing(gen_imgs)
         gen_imgs = np.rint(gen_imgs).astype(int)
         gen_imgs = np.squeeze(gen_imgs, axis=3)
-
-        for i, img in enumerate(gen_imgs):
-            path = os.path.join(self.samples, 'mask_' + str(i) + '.png')
-            imsave(img, path)
 
         return score
 
