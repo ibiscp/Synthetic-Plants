@@ -11,7 +11,7 @@ from utils import *
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../../plants-dataset/SugarBeets_256/', help="Name of the dataset path to use")
+    parser.add_argument("dataset_path", nargs='?', default='../../plants_dataset/SugarBeets_256/', help="Name of the dataset path to use")
 
     return parser.parse_args()
 
