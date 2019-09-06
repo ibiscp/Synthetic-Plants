@@ -14,6 +14,7 @@ import matplotlib.gridspec as gridspec
 import sys
 sys.path.append('../')
 from pytorchMetrics import *
+from utils import *
 
 GIF_MATRIX = 5
 
@@ -24,7 +25,7 @@ class SPADE(object):
 
         self.sess = sess
         self.checkpoint_dir = args.checkpoint_dir
-        self.result_dir = args.result_dir
+        self.samples_dir = args.samples_dir
         self.log_dir = args.log_dir
         self.dataset_name = args.dataset
         self.augment_flag = args.augment_flag
@@ -75,8 +76,8 @@ class SPADE(object):
         self.img_ch = args.img_ch
         self.segmap_ch = args.segmap_ch
 
-        self.sample_dir = os.path.join(args.sample_dir, self.model_dir)
-        check_folder(self.sample_dir)
+        self.gif_dir = os.path.join(args.gif_dir, self.model_dir)
+        check_folder(self.gif_dir)
 
         self.dataset_path = os.path.join('../../../plants-dataset/', self.dataset_name)
 
@@ -142,7 +143,7 @@ class SPADE(object):
             ax.set_frame_on(False)
 
         name = ("nir" if gray else "rgb") + "_%d.png" % epoch
-        plt.savefig(os.path.join(self.sample_dir, name), bbox_inches='tight', pad_inches=0.025)
+        plt.savefig(os.path.join(self.gif_dir, name), bbox_inches='tight', pad_inches=0.025)
         plt.close()
 
     ##################################################################################
@@ -504,21 +505,17 @@ class SPADE(object):
 
             ######### Run metrics and save model ##########
 
-            #### RGB
             # Select true images
             test_samples = 32
-            true = self.get_images(type=True, number=test_samples, style='rgb')
+            true_rgb, true_nir = self.get_images(type=True, number=test_samples, style='rgb')
             # Select false images
-            false = self.get_images(type=False, number=test_samples, style='rgb')
-            score = metrics.compute_score(true, false)
+            false_rgb, false_nir = self.get_images(type=False, number=test_samples, style='rgb')
+
+            # Run metrics
+            score = metrics.compute_score(true_rgb, false_rgb)
             self.metrics_rgb.append(score)
 
-            #### NIR
-            # Select true images
-            true = self.get_images(type=True, number=test_samples, style='nir')
-            # Select false images
-            false = self.get_images(type=False, number=test_samples, style='nir')
-            score = metrics.compute_score(true, false)
+            score = metrics.compute_score(true_nir, false_nir)
             self.metrics_nir.append(score)
 
             # Save evaluation summary
@@ -541,6 +538,12 @@ class SPADE(object):
 
             # save model for final step
             self.save(self.checkpoint_dir, epoch)
+
+        for i, img in enumerate(false_rgb):
+            imsave(img, os.path.join(self.samples, 'rgb_%d.png' % i))
+
+        for i, img in enumerate(false_nir):
+            imsave(img, os.path.join(self.samples, 'nir_%d.png' % i))
 
     @property
     def model_dir(self):
@@ -599,25 +602,29 @@ class SPADE(object):
 
 
     # Get images, or from dataset, or generated, with random style or not
-    def get_images(self, type, number, style):
+    def get_images(self, type, number):
 
-        list_images = []
+        rgb_images = []
+        nir_images = []
 
         for i in range(number):
             # Get true images
             if type == True:
-                img = merge_images(self.sess.run(self.real_x), style)
+                rgb, nir = merge_images(self.sess.run(self.real_x))
 
             else:
-                img = merge_images(self.sess.run(self.random_fake_x), style)
+                rgb, nir = merge_images(self.sess.run(self.random_fake_x))
 
-            list_images.append(img)
+            rgb_images.append(rgb)
+            nir_images.append(nir)
 
-        list_images = np.vstack(list_images)
+        rgb_images = np.vstack(rgb_images)
+        nir_images = np.vstack(nir_images)
 
-        list_images = np.rint(postprocessing(list_images)).astype(int)
+        rgb_images = np.rint(postprocessing(rgb_images)).astype(int)
+        nir_images = np.rint(postprocessing(nir_images)).astype(int)
 
-        return list_images
+        return rgb_images, nir_images
 
     def get_gif_images(self):
 
@@ -645,90 +652,3 @@ class SPADE(object):
         list_nir_images = np.rint(postprocessing(list_nir_images)).astype(int)
 
         return list_rgb_images, list_nir_images
-
-    def random_test(self):
-        tf.global_variables_initializer().run()
-
-        segmap_files = glob('../../../plants-dataset/{}/{}/*.*'.format(self.dataset_name, 'test/mask'))
-
-        self.saver = tf.train.Saver()
-        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
-        self.result_dir = os.path.join(self.result_dir, self.model_dir)
-        check_folder(self.result_dir)
-
-        if could_load:
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
-
-        # write html for visual comparison
-        index_path = os.path.join(self.result_dir, 'index.html')
-        index = open(index_path, 'w')
-        index.write("<html><body><table><tr>")
-        index.write("<th>name</th><th>input</th><th>output</th></tr>")
-
-        for sample_file in tqdm(segmap_files) :
-            sample_image = load_segmap(self.dataset_path, sample_file, self.img_width, self.img_height, self.segmap_ch)
-            file_name = os.path.basename(sample_file).split(".")[0]
-            file_extension = os.path.basename(sample_file).split(".")[1]
-
-            for i in range(self.num_style) :
-                image_path = os.path.join(self.result_dir, '{}_style{}.{}'.format(file_name, i, file_extension))
-
-                fake_img = self.sess.run(self.random_test_fake_x, feed_dict={self.test_segmap_image : sample_image})
-                save_images(fake_img, [1, 1], image_path)
-
-                index.write("<td>%s</td>" % os.path.basename(image_path))
-                index.write(
-                    "<td><img src='%s' width='%d' height='%d'></td>" % (sample_file if os.path.isabs(sample_file) else (
-                            '../..' + os.path.sep + sample_file), self.img_width, self.img_height))
-                index.write(
-                    "<td><img src='%s' width='%d' height='%d'></td>" % (image_path if os.path.isabs(image_path) else (
-                            '../..' + os.path.sep + image_path), self.img_width, self.img_height))
-                index.write("</tr>")
-
-        index.close()
-
-    def guide_test(self):
-        tf.global_variables_initializer().run()
-
-        segmap_files = glob('../../../plants-dataset/{}/{}/*.*'.format(self.dataset_name, 'test/mask'))
-
-        style_image = load_style_image(self.guide_img, self.img_width, self.img_height, self.img_ch)
-
-        self.saver = tf.train.Saver()
-        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
-        self.result_dir = os.path.join(self.result_dir, self.model_dir, 'guide')
-        check_folder(self.result_dir)
-
-        if could_load:
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
-
-        # write html for visual comparison
-        index_path = os.path.join(self.result_dir, 'index.html')
-        index = open(index_path, 'w')
-        index.write("<html><body><table><tr>")
-        index.write("<th>name</th><th>style</th><th>input</th><th>output</th></tr>")
-
-        for sample_file in tqdm(segmap_files):
-            sample_image = load_segmap(self.dataset_path, sample_file, self.img_width, self.img_height, self.segmap_ch)
-            image_path = os.path.join(self.result_dir, '{}'.format(os.path.basename(sample_file)))
-
-            fake_img = self.sess.run(self.guide_test_fake_x, feed_dict={self.test_segmap_image : sample_image, self.test_guide_image : style_image})
-            save_images(fake_img, [1, 1], image_path)
-
-            index.write("<td>%s</td>" % os.path.basename(image_path))
-            index.write(
-                "<td><img src='%s' width='%d' height='%d'></td>" % (self.guide_img if os.path.isabs(self.guide_img) else (
-                        '../../..' + os.path.sep + self.guide_img), self.img_width, self.img_height))
-            index.write(
-                "<td><img src='%s' width='%d' height='%d'></td>" % (sample_file if os.path.isabs(sample_file) else (
-                        '../../..' + os.path.sep + sample_file), self.img_width, self.img_height))
-            index.write(
-                "<td><img src='%s' width='%d' height='%d'></td>" % (image_path if os.path.isabs(image_path) else (
-                        '../../..' + os.path.sep + image_path), self.img_width, self.img_height))
-            index.write("</tr>")
-
-        index.close()

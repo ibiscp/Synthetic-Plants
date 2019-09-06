@@ -11,15 +11,19 @@ import matplotlib
 matplotlib.use("WebAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import tensorflow.contrib.gan as tfgan
+# import tensorflow.contrib.gan as tfgan
 import time
-import gc
-import glob
+# import gc
+from glob import glob
 import re
 from help import *
 import math
+# from operator import itemgetter
+
+import sys
+sys.path.append('../')
 from pytorchMetrics import *
-from operator import itemgetter
+from utils import *
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -36,24 +40,26 @@ class GAN():
         self.kwargs = kwargs
 
         # Name
-        self.name = architecture + ''.join('-{}-{}'.format(key, val) for key, val in sorted(kwargs.items()))
+        self.name = architecture + ''.join('-{}-{}'.format(key, val) for key, val in sorted(kwargs.items())) + '/'
 
         # Directories
-        self.directory = '../resources/' + self.name + '/'
-        self.gif_dir = self.directory + 'gif/'
-        self.model_dir = self.directory + 'model/'
-        self.summary = '../resources/summary/' + self.name
+        self.resources = 'stage_1/resources/'
+        self.gif_dir = os.path.join(self.resources, 'gif/', self.name)
+        self.model_dir = os.path.join(self.resources, 'model/', self.name)
+        self.logs = os.path.join(self.resources, 'logs/', self.name)
+        self.samples = os.path.join(self.resources, 'samples/', self.name)
+
+        # Create directories
+        check_folder(self.resources)
+        check_folder(self.gif_dir)
+        check_folder(self.model_dir)
+        check_folder(self.logs)
+        check_folder(self.samples)
 
         # Training parameters
         self.epoch = 0
         self.batch = 0
         self.metrics = []
-
-        # Create directories
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-            os.makedirs(self.gif_dir)
-            os.makedirs(self.model_dir)
 
         # Load data
         self.train_dataset = train_dataset
@@ -61,11 +67,11 @@ class GAN():
         self.kwargs['img_shape'] = shape
 
         # Load the seed for the gif
-        if not os.path.isfile(self.directory + '../' + str(self.latent_dim) + '.pkl'):
+        if not os.path.isfile(self.resources + str(self.latent_dim) + '.pkl'):
             self.gif_generator = np.random.normal(0, 1, (GIF_MATRIX ** 2, self.latent_dim))
-            save(self.gif_generator, self.directory + '../' + str(self.latent_dim) + '.pkl')
+            save(self.gif_generator, self.resources + str(self.latent_dim) + '.pkl')
         else:
-            self.gif_generator = load(self.directory + '../' + str(self.latent_dim) + '.pkl')
+            self.gif_generator = load(self.resources + str(self.latent_dim) + '.pkl')
 
         # Load the correct gan
         self.load_gan()
@@ -76,7 +82,7 @@ class GAN():
         self.gan = globals()[self.architecture](**self.kwargs)
 
         # Get all the models saved
-        files = glob.glob(self.model_dir + '*.h5')
+        files = glob(self.model_dir + '*.h5')
 
         # Load Checkpoint if found
         if files:
@@ -99,11 +105,11 @@ class GAN():
         del data['train_dataset']
         del data['test_dataset']
 
-        save(data, self.directory + 'checkpoint.pkl')
+        save(data, self.model_dir + 'checkpoint.pkl')
 
     def load_checkpoint(self):
 
-        data = load(self.directory + 'checkpoint.pkl')
+        data = load(self.model_dir + 'checkpoint.pkl')
 
         for key, value in data.items():
             setattr(self, key, value)
@@ -114,7 +120,7 @@ class GAN():
         gen_imgs = np.sign(gen_imgs)
         gen_imgs = (0.5 * gen_imgs + 0.5) * 255
 
-        plt.figure(figsize=(GIF_MATRIX, GIF_MATRIX))
+        plt.figure(figsize=(GIF_MATRIX*3, GIF_MATRIX*3))
         gs1 = gridspec.GridSpec(GIF_MATRIX, GIF_MATRIX)
         gs1.update(wspace=0.025, hspace=0.025)
         for i in range(gen_imgs.shape[0]):
@@ -168,7 +174,7 @@ class GAN():
         wallclocktime = 0
 
         # Summary
-        summary_writer = tf.summary.FileWriter(self.summary, max_queue=1)
+        summary_writer = tf.summary.FileWriter(self.logs, max_queue=1)
 
         for epoch in range(self.epoch, self.epochs):
 
@@ -236,8 +242,23 @@ class GAN():
                 self.gan.save(self.model_dir, self.epoch)
                 self.save_checkpoint()
 
+        # Save last model
+        self.gan.save(self.model_dir, self.epoch)
+        self.save_checkpoint()
+
         # Create gif
-        create_gif(self.directory, self.test_dataset)
+        create_gif(self.gif_dir, self.model_dir, self.test_dataset)
+
+        # Print samples
+        gen_imgs = self.predict_generator(self.gif_generator)
+        gen_imgs = np.sign(gen_imgs)
+        gen_imgs = (0.5 * gen_imgs + 0.5) * 255
+        gen_imgs = np.rint(gen_imgs).astype(int)
+        gen_imgs = np.squeeze(gen_imgs, axis=3)
+
+        for i, img in enumerate(gen_imgs):
+            path = os.path.join(self.samples, 'mask_' + str(i) + '.png')
+            imsave(img, path)
 
         return score
 

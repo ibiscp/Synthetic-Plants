@@ -204,18 +204,19 @@ def load_style_image(image_path, img_width, img_height, img_channel):
     return img
 
 # Merge rgb image with nir summing nir in each channel
-def merge_images(x, style):
+def merge_images(x):
     rgb = x[:,:,:,0:3]
     nir = np.expand_dims(x[:,:,:,3], 3)
+    nir = np.repeat(nir, 3, axis=3)
 
-    if style == 'rgb':
-        output = rgb
-    elif style == 'nir':
-        output = nir
-    else:
-        output = np.add(rgb, nir) / 2
+    # if style == 'rgb':
+    #     output = rgb
+    # elif style == 'nir':
+    #     output = nir
+    # else:
+    #     output = np.add(rgb, nir) / 2
 
-    return output
+    return rgb, nir
 
 # Convert to the range [-1, 1]
 def preprocessing(x):
@@ -269,11 +270,6 @@ def merge(images, size):
 def show_all_variables():
     model_vars = tf.trainable_variables()
     slim.model_analyzer.analyze_vars(model_vars, print_info=True)
-
-def check_folder(log_dir):
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    return log_dir
 
 def str2bool(x):
     return x.lower() in ('true')

@@ -20,6 +20,8 @@ class DCGAN():
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        self.decay_epoch = 100
+
         # Input shape
         self.img_rows = self.img_shape[0]
         self.img_cols = self.img_shape[1]
@@ -142,10 +144,10 @@ class DCGAN():
 
     def reduce_lr(self, epoch):
         # TODO VERIFICAR LEARNING RATE DECAY USING THIS FORMULA
-        # lr = self.init_lr if epoch < self.decay_epoch else self.init_lr * (self.epoch - epoch) / (
-        #             self.epoch - self.decay_epoch)
-        K.set_value(self.discriminator.optimizer.lr, 1/(1+self.d_ld*epoch)*K.eval(self.discriminator.optimizer.lr))
-        K.set_value(self.combined.optimizer.lr, 1/(1+self.g_ld*epoch)*K.eval(self.combined.optimizer.lr))
+        d_lr = self.d_lr if epoch < self.decay_epoch else self.d_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
+        g_lr = self.g_lr if epoch < self.decay_epoch else self.g_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
+        K.set_value(self.discriminator.optimizer.lr, d_lr)
+        K.set_value(self.combined.optimizer.lr, g_lr)
 
 
     def load(self, dir, version):

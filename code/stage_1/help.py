@@ -1,5 +1,5 @@
 import pickle
-import glob
+from glob import glob
 import imageio
 import os
 import cv2
@@ -17,36 +17,32 @@ import matplotlib.image as mpimg
 from PIL import Image
 import math
 
-# Save dictionary to file
-def save(obj, name):
-    with open(name, 'wb') as f:
-        pickle.dump(obj, f)
-
-# Load dictionary from file
-def load(name):
-    with open(name, 'rb') as f:
-        return pickle.load(f)
+import sys
+sys.path.append('../')
+from utils import *
 
 # Create the gif given the dictionary and its size
-def create_gif(directory, test_dataset, duration=10):
-    files = glob.glob(directory + '/gif/' + '*.png')
+def create_gif(images_directory, checkpoint_directory, test_dataset, duration=10):
+    files = glob(images_directory + '*.png')
     files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     frames = []
     images = []
 
+    size = (1100, 1100)
+
     # Get gif images
     for f in files:
         img = cv2.imread(f, 1)
-        img = cv2.resize(img, (400, 400))
+        img = cv2.resize(img, size)
         images.append(img)
 
     # Construct graph
-    graphs = generate_graphs(directory, test_dataset)
+    graphs = generate_graphs(checkpoint_directory, test_dataset, size)
 
     # new_im = Image.new('RGB', (total_width, max_height))
     for i, image in enumerate(images):
         graph = graphs[i]
-        graph = graph[3:3 + 400, 5:5 + 400]
+        # graph = graph[3:3 + size[0], 5:5 + size[1]]
         new_im = np.hstack((image, graph))
         frames.append(new_im)
 
@@ -58,9 +54,9 @@ def create_gif(directory, test_dataset, duration=10):
     time = duration/len(frames)
 
     # Create gif
-    imageio.mimsave(directory + 'training.gif', frames, format='GIF', duration=time)
+    imageio.mimsave(images_directory + 'training.gif', frames, format='GIF', duration=time)
 
-def generate_graphs(directory, test_dataset):
+def generate_graphs(directory, test_dataset, size):
 
     # Load metrics
     metrics = load(directory + 'checkpoint.pkl')
@@ -94,8 +90,8 @@ def generate_graphs(directory, test_dataset):
     gold_metrics = calculate_gold_metrics(test_dataset)
 
     # Graph size
-    width = 420
-    height = 420
+    width = size[0]
+    height = size[1]
     dpi = 100
 
     for epoch in range(epochs):
@@ -133,7 +129,7 @@ def generate_graphs(directory, test_dataset):
 # Load list of files of a dictionary with image shape
 def load_dataset_list(directory):
     # Load the dataset
-    files = glob.glob(directory + '*.png')
+    files = glob(directory + '*.png')
     # number_files = len(files)
     # print('\nNumber of files: ', number_files)
 
@@ -175,9 +171,9 @@ def calculate_gold_metrics(test_dataset):
     metrics = pytorchMetrics()
 
     for i in range(10):
-        samples = data[np.random.choice(data.shape[0], 100)]
-        real_1 = samples[:50]
-        real_2 = samples[50:]
+        samples = data[np.random.choice(data.shape[0], 200)]
+        real_1 = samples[:100]
+        real_2 = samples[100:]
 
         metrics_list.append(metrics.compute_score(real_1, real_2))
 

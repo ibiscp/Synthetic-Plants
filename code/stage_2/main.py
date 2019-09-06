@@ -2,16 +2,18 @@ from SPADE import SPADE
 import argparse
 from utils import *
 
+
+
 """parsing and configuration"""
 def parse_args():
     desc = "Tensorflow implementation of SPADE"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
-    parser.add_argument('--dataset', type=str, default='SugarBeets_128', help='dataset_name')
+    parser.add_argument('--dataset', type=str, default='SugarBeets_256', help='dataset_name')
 
     parser.add_argument('--epoch', type=int, default=150, help='The number of epochs to run')
-    # parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
     parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
+    # parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
@@ -58,11 +60,11 @@ def parse_args():
 
     parser.add_argument('--checkpoint_dir', type=str, default='resources/model',
                         help='Directory name to save the checkpoints')
-    parser.add_argument('--result_dir', type=str, default='resources/summary',
+    parser.add_argument('--samples_dir', type=str, default='resources/samples',
                         help='Directory name to save the generated images')
     parser.add_argument('--log_dir', type=str, default='resources/logs',
                         help='Directory name to save training logs')
-    parser.add_argument('--sample_dir', type=str, default='resources/gif',
+    parser.add_argument('--gif_dir', type=str, default='resources/gif',
                         help='Directory name to save the samples on training')
 
     return check_args(parser.parse_args())
@@ -73,14 +75,14 @@ def check_args(args):
     # --checkpoint_dir
     check_folder(args.checkpoint_dir)
 
-    # --result_dir
-    check_folder(args.result_dir)
+    # --samples_dir
+    check_folder(args.samples_dir)
 
     # --log_dir
     check_folder(args.log_dir)
 
     # --sample_dir
-    check_folder(args.sample_dir)
+    check_folder(args.gif_dir)
 
     # --epoch
     try:
