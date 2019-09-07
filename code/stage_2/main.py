@@ -15,8 +15,8 @@ def parse_args():
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
     parser.add_argument('--dataset', type=str, default='SugarBeets_256', help='dataset_name')
 
-    parser.add_argument('--epoch', type=int, default=150, help='The number of epochs to run')
-    parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
+    parser.add_argument('--epoch', type=int, default=1, help='The number of epochs to run')
+    parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
