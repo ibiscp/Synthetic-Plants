@@ -1,9 +1,11 @@
 import sys
 sys.path.append('../')
-from utils import *
+
 
 for i in sys.path:
     print(i)
+
+from utils import *
 
 from argparse import ArgumentParser
 from gridSearch import *
