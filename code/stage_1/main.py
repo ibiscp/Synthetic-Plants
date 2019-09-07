@@ -2,8 +2,8 @@ import sys
 sys.path.append('../')
 
 
-for i in sys.path:
-    print(i)
+# for i in sys.path:
+#     print(i)
 
 from utils import *
 
