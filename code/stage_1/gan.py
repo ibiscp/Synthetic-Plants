@@ -136,7 +136,7 @@ class GAN():
 
             yield data
 
-    def train(self, samples=2048):
+    def train(self, samples=1):#2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
@@ -214,6 +214,10 @@ class GAN():
                 self.gan.save(self.model_dir, self.epoch)
                 self.save_checkpoint()
 
+            # Print samples
+            gen_imgs = np.rint(gen_imgs).astype(int)
+            gen_imgs = np.squeeze(gen_imgs, axis=3)
+
             # Save images separately
             for i, img in enumerate(gen_imgs):
                 imsave(img, os.path.join(self.samples, 'mask_%d_%d.png' %(i, epoch)))
@@ -224,13 +228,6 @@ class GAN():
 
         # Create gif
         create_gif(self.gif_dir, self.metrics, self.test_dataset, type='mask')
-
-        # Print samples
-        gen_imgs = self.predict_generator(self.gif_generator)
-        gen_imgs = np.sign(gen_imgs)
-        gen_imgs = postprocessing(gen_imgs)
-        gen_imgs = np.rint(gen_imgs).astype(int)
-        gen_imgs = np.squeeze(gen_imgs, axis=3)
 
         return score
 

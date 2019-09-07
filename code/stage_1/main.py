@@ -1,17 +1,17 @@
-from argparse import ArgumentParser
-from gridSearch import *
-from help import *
-
 import sys
 sys.path.append('../')
 from utils import *
 
+for i in sys.path:
+    print(i)
 
-# '../dataset/SugarBeets/train/mask/'
+from argparse import ArgumentParser
+from gridSearch import *
+from help import *
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("dataset_path", nargs='?', default='../../plants_dataset/SugarBeets_256/', help="Name of the dataset path to use")
+    parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/SugarBeets_256/', help="Name of the dataset path to use")
 
     return parser.parse_args()
 
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/', type='mask')
 
     # Define the base grid search parameters
-    base = {'epochs': [150], 'latent_dim': [100], 'batch_size': [128]}
+    base = {'epochs': [1], 'latent_dim': [1], 'batch_size': [64]}
 
     # DCGAN
     DCGAN = {'g_lr': [0.0002], 'g_ld': [0.001], 'g_beta_1': [0.5], 'd_lr': [0.0002], 'd_ld': [0.001], 'd_beta_1': [0.5]}
