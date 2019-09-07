@@ -32,7 +32,7 @@ class GAN():
         self.name = architecture + ''.join('-{}-{}'.format(key, val) for key, val in sorted(kwargs.items())) + '/'
 
         # Directories
-        self.resources = 'stage_1/resources/'
+        self.resources = 'resources/'
         self.gif_dir = os.path.join(self.resources, 'gif/', self.name)
         self.model_dir = os.path.join(self.resources, 'model/', self.name)
         self.logs = os.path.join(self.resources, 'logs/', self.name)
