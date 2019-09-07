@@ -136,7 +136,7 @@ class GAN():
 
             yield data
 
-    def train(self, samples=1):#2048):
+    def train(self, samples=2048):
 
         metrics = pytorchMetrics()
         wallclocktime = 0
@@ -221,6 +221,8 @@ class GAN():
             # Save images separately
             for i, img in enumerate(gen_imgs):
                 imsave(img, os.path.join(self.samples, 'mask_%d_%d.png' %(i, epoch)))
+
+        print("\n\tTraining finished! Saving model and generating gif!")
 
         # Save last model
         self.gan.save(self.model_dir, self.epoch)
