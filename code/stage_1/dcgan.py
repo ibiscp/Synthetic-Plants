@@ -142,10 +142,10 @@ class DCGAN():
         # TRAIN GENERATOR
         self.g_loss = self.combined.train_on_batch(noise, valid)
 
-    def reduce_lr(self, epoch):
+    def reduce_lr(self, epoch, total_epochs):
         # TODO VERIFICAR LEARNING RATE DECAY USING THIS FORMULA
-        d_lr = self.d_lr if epoch < self.decay_epoch else self.d_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
-        g_lr = self.g_lr if epoch < self.decay_epoch else self.g_lr * (self.epoch - epoch) / (self.epoch - self.decay_epoch)
+        d_lr = self.d_lr if epoch < self.decay_epoch else self.d_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
+        g_lr = self.g_lr if epoch < self.decay_epoch else self.g_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
         K.set_value(self.discriminator.optimizer.lr, d_lr)
         K.set_value(self.combined.optimizer.lr, g_lr)
 
