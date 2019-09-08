@@ -20,7 +20,7 @@ class DCGAN():
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        self.decay_epoch = 100
+        self.decay_epoch = 50
 
         # Input shape
         self.img_rows = self.img_shape[0]
@@ -33,7 +33,7 @@ class DCGAN():
 
         # Possible parameters
         self.startingSize = 8
-        self.outputFilter = 16
+        self.outputFilter = 32
         self.kernel_size = 3
 
         self.upSamplingLayer = int(math.log2(self.img_rows) - math.log2(self.startingSize))
@@ -47,7 +47,7 @@ class DCGAN():
 
         model = Sequential()
 
-        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 1))
+        starting = self.outputFilter * (2 ** (self.upSamplingLayer + 2))
         model.add(Dense(starting * self.startingSize ** 2, activation="relu", input_dim=self.latent_dim))
         model.add(Reshape((self.startingSize, self.startingSize, starting)))
         model.add(BatchNormalization(momentum=0.8))
@@ -143,14 +143,13 @@ class DCGAN():
         self.g_loss = self.combined.train_on_batch(noise, valid)
 
     def reduce_lr(self, epoch, total_epochs):
-        # TODO VERIFICAR LEARNING RATE DECAY USING THIS FORMULA
-        # d_lr = self.d_lr if epoch < self.decay_epoch else self.d_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
-        # g_lr = self.g_lr if epoch < self.decay_epoch else self.g_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
-        # K.set_value(self.discriminator.optimizer.lr, d_lr)
-        # K.set_value(self.combined.optimizer.lr, g_lr)
+        d_lr = self.d_lr if epoch < self.decay_epoch else self.d_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
+        g_lr = self.g_lr if epoch < self.decay_epoch else self.g_lr * (total_epochs - epoch) / (total_epochs - self.decay_epoch)
+        K.set_value(self.discriminator.optimizer.lr, d_lr)
+        K.set_value(self.combined.optimizer.lr, g_lr)
 
-        K.set_value(self.discriminator.optimizer.lr, 1 / (1 + self.d_ld * epoch) * K.eval(self.discriminator.optimizer.lr))
-        K.set_value(self.combined.optimizer.lr, 1 / (1 + self.g_ld * epoch) * K.eval(self.combined.optimizer.lr))
+        # K.set_value(self.discriminator.optimizer.lr, 1 / (1 + self.d_ld * epoch) * K.eval(self.discriminator.optimizer.lr))
+        # K.set_value(self.combined.optimizer.lr, 1 / (1 + self.g_ld * epoch) * K.eval(self.combined.optimizer.lr))
 
 
     def load(self, dir, version):

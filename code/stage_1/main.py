@@ -21,8 +21,8 @@ if __name__ == '__main__':
     args = parse_args()
 
     # Load dataset list
-    train_dataset, shape = load_dataset_list(directory=args.dataset_path + 'train/mask/', type='mask')
-    test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/mask/', type='mask')
+    train_dataset, shape = load_dataset_list(directory=args.dataset_path + 'train/blur/', type='mask')
+    test_dataset, _ = load_dataset_list(directory=args.dataset_path + 'test/blur/', type='mask')
 
     # Define the base grid search parameters
     base = {'epochs': [100], 'latent_dim': [100], 'batch_size': [32]}
