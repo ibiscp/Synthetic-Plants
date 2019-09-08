@@ -77,7 +77,7 @@ class DCGAN():
         model = Sequential()
 
         # add Gaussian noise to prevent Discriminator overfitting
-        # model.add(GaussianNoise(0.2, input_shape=self.img_shape))
+        model.add(GaussianNoise(0.2, input_shape=self.img_shape))
 
         model.add(Conv2D(self.outputFilter, kernel_size=self.kernel_size, strides=2, input_shape=self.img_shape, padding="same"))  # 256 -> 128
         model.add(LeakyReLU(alpha=0.2))
