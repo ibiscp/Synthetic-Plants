@@ -20,7 +20,7 @@ class DCGAN():
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        self.decay_epoch = 400
+        self.decay_epoch = 200
 
         # Input shape
         self.img_rows = self.img_shape[0]
