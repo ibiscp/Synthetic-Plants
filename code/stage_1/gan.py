@@ -148,7 +148,7 @@ class GAN():
 
             self.epoch = epoch
 
-            print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
+            # print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
 
             batch_numbers = math.ceil(samples/self.batch_size)
 
