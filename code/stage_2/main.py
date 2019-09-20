@@ -12,11 +12,11 @@ from utils import *
 def parse_args():
     desc = "Tensorflow implementation of SPADE"
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
+    parser.add_argument('--phase', type=str, default='guide', choices=('train', 'guide', 'random'), help='phase name')
     parser.add_argument('--dataset', type=str, default='SugarBeets_256', help='dataset_name')
 
     parser.add_argument('--epoch', type=int, default=300, help='The number of epochs to run')
-    parser.add_argument('--iteration', type=int, default=1000, help='The number of training iterations')
+    parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
     # The total number of iterations is [epoch * iteration]
 
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch size')
@@ -71,6 +71,8 @@ def parse_args():
                         help='Directory name to save the samples on training')
     parser.add_argument('--seed_dir', type=str, default='resources/seed',
                         help='Directory name of the seed files')
+    parser.add_argument('--result_dir', type=str, default='resources/results',
+                        help='Directory name to save the generated images')
 
     return check_args(parser.parse_args())
 
@@ -88,6 +90,9 @@ def check_args(args):
 
     # --sample_dir
     check_folder(args.gif_dir)
+
+    # --result_dir
+    check_folder(args.result_dir)
 
     # --epoch
     try:
@@ -126,10 +131,10 @@ def main():
         # if args.phase == 'random' :
         #     gan.random_test()
         #     print(" [*] Random test finished!")
-        #
-        # if args.phase == 'guide' :
-        #     gan.guide_test()
-        #     print(" [*] Guide test finished")
+
+        if args.phase == 'guide' :
+            gan.guide_test()
+            print(" [*] Guide test finished")
 
 
 if __name__ == '__main__':

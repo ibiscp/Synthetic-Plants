@@ -24,7 +24,8 @@ TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--dataset_path", type=str, default='../../plants-dataset/Bonn 2016/', help="Dataset path")
+    parser.add_argument("--dataset_path", type=str, default='../../plants_dataset/Bonn 2016/', help="Dataset path")
+    # parser.add_argument("--dataset_path", type=str, default='../../plants_dataset/SugarBeets_256/train/', help="Dataset path")
     parser.add_argument("--plant_type", type=str, default='SugarBeets', help="Output path")
     parser.add_argument("--dimension", type=int, default=256, help="Image dimension")
 
@@ -220,10 +221,13 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = F
 
                             # Contour mask (roughy position of the plant)
                             mask = np.zeros(shape=(rgbimg.shape[0], rgbimg.shape[1]), dtype="uint8")
+                            cv2.imwrite('../images/mask.png', mask)
                             cv2.drawContours(mask, [np.array(list(zip(x, y)), dtype=np.int32)], -1, (255, 255, 255), -1)
+                            cv2.imwrite('../images/contour.png', mask)
 
                             # Bitwise with RGB mask and most extreme points along the contour
                             bitRgb = cv2.bitwise_and(maskRgb, maskRgb, mask=mask)
+                            cv2.imwrite('../images/bitRgb.png', bitRgb)
                             _, contoursRgb, _ = cv2.findContours(bitRgb, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
                             if not contoursRgb:
                                 continue
@@ -235,12 +239,14 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = F
 
                             # Bitwise with NIR mask and most extreme points along the contour
                             bitNir = cv2.bitwise_and(maskNir, maskNir, mask=mask)
+                            cv2.imwrite('../images/bitNir.png', (cv2.bitwise_and(maskNir, maskNir, mask=mask)/np.max(cv2.bitwise_and(maskNir, maskNir, mask=mask))*255).astype(int))
                             _, contoursNir, _ = cv2.findContours(bitNir, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
                             # Final mask
                             finalMask = np.zeros(shape=(shape[0], shape[1]), dtype="uint8")
                             cv2.drawContours(finalMask, contoursRgb, -1, (255, 255, 255), -1)
                             cv2.drawContours(finalMask, contoursNir, -1, (255, 255, 255), -1)
+                            cv2.imwrite('../images/finalMask.png', finalMask)
                             if smooth:
                                 finalMask = cv2.blur(finalMask, (5,5))
 
@@ -266,6 +272,10 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = F
                                 cropNir = finalNir[bot:top, left:right]
                                 cropMask = finalMask[bot:top, left:right]
 
+                                cv2.imwrite('../images/cropRgb.png', cropRgb)
+                                cv2.imwrite('../images/cropNir.png', cropNir)
+                                cv2.imwrite('../images/cropMask.png', cropMask)
+
                                 # cv2.imwrite(
                                 #     output_path + 'train/mask/' + imageName + '_' + str(id) + '_' + '.png',
                                 #     cropMask)
@@ -287,14 +297,20 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = F
                                 # Write image
                                 if save_images:
                                     for k in range(len(cropMask_)):
-                                        cv2.imwrite(output_path + 'train/rgb/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropRgb_[k])
-                                        cv2.imwrite(output_path + 'train/nir/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropNir_[k])
-                                        cv2.imwrite(output_path + 'train/mask/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropMask_[k])
+                                        # cv2.imwrite(output_path + 'train/rgb/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropRgb_[k])
+                                        # cv2.imwrite(output_path + 'train/nir/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropNir_[k])
+                                        # cv2.imwrite(output_path + 'train/mask/' + imageName + '_' + str(id) + '_' + str(k) + '.png', cropMask_[k])
 
                                         # cv2.imwrite(output_path + 'train/rgb/rgb_' + str(imageNumber) + '.png', cropRgb_[k])
                                         # cv2.imwrite(output_path + 'train/nir/nir_' + str(imageNumber) + '.png', cropNir_[k])
-                                        # cv2.imwrite(output_path + 'train/mask/mask_' + str(imageNumber) + '.png', cropMask_[k])
-                                        # imageNumber += 1
+                                        cv2.imwrite(output_path + 'train/mask/mask_' + str(imageNumber) + '.png', cropMask_[k])
+                                        imageNumber += 1
+
+                                        cv2.imwrite('../images/cropRgb' + str(imageNumber) + '.png', cropRgb_[k])
+                                        cv2.imwrite('../images/cropNir' + str(imageNumber) + '.png', cropNir_[k])
+                                        cv2.imwrite('../images/cropMask' + str(imageNumber) + '.png', cropMask_[k])
+
+                                        print('done')
 
                                         # cv2.imwrite(output_path + 'train/rgb/rgb_' + str(imageNumber) + '.png', cropRgb_[k])
                                         # imageNumber += 1
@@ -320,7 +336,7 @@ if __name__ == '__main__':
                 os.makedirs(output_path + f + s)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, type=args.plant_type, save_images=True)
+        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, type=args.plant_type, smooth = False, save_images=True)
 
         # Split train and test files
         files = os.listdir(output_path + folders[0] + 'mask/')
@@ -332,10 +348,18 @@ if __name__ == '__main__':
                 folderName = s[0:-1]
                 shutil.move(output_path + folders[0] + s + s[0:-1] + '_' + fileNumber, output_path + folders[1] + s + s[0:-1] + '_' + fileNumber)
 
-    # Split train and test files
-    files = os.listdir(output_path + folders[0] + 'mask/')
-    cut_files = random.sample(files, 200)
+    # # Split train and test files
+    # files = os.listdir(args.dataset_path + 'blur/')
+    # cut_files = random.sample(files, 200)
+    #
+    # for s in cut_files:
+    #     shutil.move('../../plants_dataset/SugarBeets_256/train/blur/' + s,
+    #                 '../../plants_dataset/SugarBeets_256/test/blur/' + s)
+    #
+    # # Split train and test files
+    # files = os.listdir(output_path + folders[0] + 'mask/')
+    # cut_files = random.sample(files, 200)
 
-    for c in cut_files:
-                for s in subfolers:
-                    shutil.move(output_path + folders[0] + s + c, output_path + folders[1] + s + c)
+    # for c in cut_files:
+    #             for s in subfolers:
+    #                 shutil.move(output_path + folders[0] + s + c, output_path + folders[1] + s + c)

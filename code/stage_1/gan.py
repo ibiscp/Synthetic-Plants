@@ -148,8 +148,6 @@ class GAN():
 
             self.epoch = epoch
 
-            # print("\tEpoch %d/%d" % (epoch + 1, self.epochs))
-
             batch_numbers = math.ceil(samples/self.batch_size)
 
             for real_images in self.batch_generator(samples):
@@ -162,7 +160,6 @@ class GAN():
                 # Save iteration time
                 wallclocktime += time.time() - start
 
-                # print("\t\tBatch %d/%d - time: %.2f seconds" % ((self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
                 print("\tEpoch: [%4d/%4d] [%5d/%5d] time: %4.4f" % (
                     epoch + 1, self.epochs, (self.batch % batch_numbers) + 1, batch_numbers, time.time() - start))
                 self.batch += 1
@@ -186,6 +183,9 @@ class GAN():
             idx = np.random.randint(0, len(self.test_dataset), test_samples)
             files = [self.test_dataset[i] for i in idx]
             true = load_data(files, type='mask', repeat=True)
+            true = preprocessing(true)
+            true = np.sign(true)
+            true = postprocessing(true)
             # print(np.max(true))
             # print(np.min(true))
 
@@ -212,9 +212,8 @@ class GAN():
             summary_writer.add_summary(summary, global_step=self.epoch)
 
             # Save model
-            if (epoch + 1) % 10 == 0:
-                self.gan.save(self.model_dir, self.epoch)
-                self.save_checkpoint()
+            self.gan.save(self.model_dir, self.epoch)
+            self.save_checkpoint()
 
             # Print samples
             gen_imgs = np.rint(gen_imgs).astype(int)
@@ -222,13 +221,9 @@ class GAN():
 
             # Save images separately
             for i, img in enumerate(gen_imgs):
-                imsave(img, os.path.join(self.samples, 'mask_%d_%d.png' %(i, epoch)))
+                imsave(img, os.path.join(self.samples, 'mask_%d_%d.png' %(epoch, i)))
 
         print("\n\tTraining finished! Saving model and generating gif!")
-
-        # Save last model
-        self.gan.save(self.model_dir, self.epoch)
-        self.save_checkpoint()
 
         # Create gif
         create_gif(self.gif_dir, self.metrics, self.test_dataset, type='mask')

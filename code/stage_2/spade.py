@@ -9,6 +9,7 @@ import sys
 sys.path.append('../')
 from pytorchMetrics import *
 from utils import *
+import tqdm
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -20,10 +21,10 @@ class spade(object):
 
         self.sess = sess
         self.checkpoint_dir = args.checkpoint_dir
-        self.samples_dir = args.samples_dir
         self.log_dir = args.log_dir
         self.dataset_name = args.dataset
         self.augment_flag = args.augment_flag
+        self.result_dir = args.result_dir
 
         self.epoch = args.epoch
         self.iteration = args.iteration
@@ -73,6 +74,8 @@ class spade(object):
 
         self.gif_dir = os.path.join(args.gif_dir, self.model_dir)
         check_folder(self.gif_dir)
+        self.samples_dir = os.path.join(args.samples_dir, self.model_dir)
+        check_folder(self.samples_dir)
         self.seed_dir = args.seed_dir
 
         self.dataset_path = os.path.join('../../../plants_dataset/', self.dataset_name)
@@ -469,7 +472,7 @@ class spade(object):
                 # display training status
                 if g_loss == None:
                     g_loss = past_g_loss
-                print("Epoch: [%4d/%4d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
+                print("\tEpoch: [%4d/%4d] [%5d/%5d] time: %4.4f d_loss: %.8f, g_loss: %.8f" % (
                     epoch+1, self.epoch, batch+1, self.iteration, time.time() - start_time, d_loss, g_loss))
 
                 batch_id += 1
@@ -512,10 +515,12 @@ class spade(object):
 
             # Save images separately
             for i, img in enumerate(rgb_images):
-                imsave(img, os.path.join(self.samples_dir, 'rgb_%d_%d.png' %(i, epoch)))
+                imsave(img, os.path.join(self.samples_dir, 'rgb_%d_%d.png' %(epoch, i)))
 
             for i, img in enumerate(nir_images):
-                imsave(img, os.path.join(self.samples_dir, 'nir_%d_%d.png' %(i, epoch)))
+                imsave(img, os.path.join(self.samples_dir, 'nir_%d_%d.png' %(epoch, i)))
+
+        print("\n\tTraining finished! Saving model and generating gif!")
 
         # Create gif
         rgb_dataset, _ = load_dataset_list(self.img_class.img_test_dataset_path, type='rgb')
@@ -627,3 +632,62 @@ class spade(object):
         list_nir_images = np.rint(postprocessing(list_nir_images)).astype(int)
 
         return list_rgb_images, list_nir_images
+
+    def guide_test(self):
+        tf.global_variables_initializer().run()
+
+        segmap_files = glob(os.path.join(self.dataset_path, 'test/segmap/*.png'))
+        style_files = glob(os.path.join(self.dataset_path, 'test/guides/*_rgb.png'))
+
+        self.saver = tf.train.Saver()
+        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
+        self.result_dir = os.path.join(self.result_dir, self.model_dir, 'guide')
+        check_folder(self.result_dir)
+
+        if could_load:
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+
+        # write html for visual comparison
+        index_path = os.path.join(self.result_dir, 'index.html')
+        index = open(index_path, 'w')
+        index.write("<html><body><table><tr>")
+        index.write("<th>name</th><th>style RGB</th><th>style NIR</th><th>input</th><th>output RGB</th><th>output NIR</th></tr>")
+
+        for style in style_files:
+
+            style_image = load_style_image(style[:-8], self.img_width, self.img_height, self.img_ch)
+
+            for sample_file in segmap_files:
+                sample_image = load_segmap(self.dataset_path, sample_file, self.img_width, self.img_height, self.segmap_ch)
+                image_path = os.path.join(self.result_dir, '{}'.format(os.path.basename(sample_file)[:-4]))
+
+                fake_img = self.sess.run(self.guide_test_fake_x, feed_dict={self.test_segmap_image: sample_image,
+                                                                            self.test_guide_image: style_image})
+
+                fake_rgb = np.rint(postprocessing(fake_img[:, :, :, 0:3])).astype(int)[0]
+                fake_nir = np.rint(postprocessing(fake_img[:, :, :, 3])).astype(int)[0]
+
+                imsave(fake_rgb, image_path + os.path.basename(style)[:-8] + '_rgb.png')
+                imsave(fake_nir, image_path + os.path.basename(style)[:-8] + '_nir.png')
+
+                index.write("<td>%s</td>" % os.path.basename(image_path))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (
+                            '../../../../' + style[:-8] + '_rgb.png', self.img_width, self.img_height))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (
+                            '../../../../' + style[:-8] + '_nir.png', self.img_width, self.img_height))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (
+                            '../../../../' + sample_file, self.img_width, self.img_height))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (
+                            '../../../../' + image_path + os.path.basename(style)[:-8] + '_rgb.png', self.img_width, self.img_height))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (
+                            '../../../../' + image_path + os.path.basename(style)[:-8] + '_nir.png', self.img_width, self.img_height))
+                index.write("</tr>")
+
+        index.close()

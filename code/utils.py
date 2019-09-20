@@ -77,13 +77,13 @@ def create_gif(images_directory, metrics, test_dataset, type, duration=10):
     # Get gif images
     for f in files:
         img = cv2.imread(f, 1)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, size)
         images.append(img)
 
     # Construct graph
     graphs = generate_graphs(metrics, test_dataset, size, type)
 
-    # new_im = Image.new('RGB', (total_width, max_height))
     for i, image in enumerate(images):
         graph = graphs[i]
         # graph = graph[3:3 + size[0], 5:5 + size[1]]
@@ -210,6 +210,7 @@ def load_data(files, type, repeat=False, scale=False):
             img = cv2.imread(file, 0)
         else:
             img = cv2.imread(file, -1)
+            # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         data.append(img)
 
     data = np.asarray(data, dtype='uint8')
