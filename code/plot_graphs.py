@@ -175,10 +175,10 @@ def create_csv(metrics, type):
 # number = 24
 # plot_grid(path, type, number)
 
-# metrics_mask = load(os.path.join('../../plants_output/blur/model/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-500-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/', 'checkpoint.pkl'))['metrics']
-# create_csv(metrics_mask, 'mask')
+metrics_mask = load(os.path.join('../../plants_output/resources/model/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-300-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/', 'checkpoint.pkl'))['metrics']
+create_csv(metrics_mask, 'mask')
 
-[metrics_rgb, metrics_nir] = load(os.path.join('/Volumes/MAXTOR/spade_final_training/model/SPADE_load_test_SugarBeets_256_hinge_2multi_4dis_1_1_10_10_0.05_sn_TTUR_more/', 'metrics.pkl'))
-create_csv(metrics_rgb, 'rgb')
-
-create_csv(metrics_nir, 'nir')
+# [metrics_rgb, metrics_nir] = load(os.path.join('/Volumes/MAXTOR/spade_final_training/model/SPADE_load_test_SugarBeets_256_hinge_2multi_4dis_1_1_10_10_0.05_sn_TTUR_more/', 'metrics.pkl'))
+# create_csv(metrics_rgb, 'rgb')
+#
+# create_csv(metrics_nir, 'nir')

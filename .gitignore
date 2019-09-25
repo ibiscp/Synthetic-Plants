@@ -3,6 +3,11 @@
 .idea/
 __pycache__
 
+# Include specific files
+!resources/seed.pkl
+!*seed
+code/stage_2/resources/*.png
+
 # Folders
 dataset
 resources
@@ -11,6 +16,6 @@ resources
 *.gz
 test.py
 wgangpTest.py
+*.png
 
-# Include specific files
-!resources/seed.pkl
+

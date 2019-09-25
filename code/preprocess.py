@@ -221,13 +221,13 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', smooth = F
 
                             # Contour mask (roughy position of the plant)
                             mask = np.zeros(shape=(rgbimg.shape[0], rgbimg.shape[1]), dtype="uint8")
-                            cv2.imwrite('../images/mask.png', mask)
+                            # cv2.imwrite('../images/mask.png', mask)
                             cv2.drawContours(mask, [np.array(list(zip(x, y)), dtype=np.int32)], -1, (255, 255, 255), -1)
-                            cv2.imwrite('../images/contour.png', mask)
+                            # cv2.imwrite('../images/contour.png', mask)
 
                             # Bitwise with RGB mask and most extreme points along the contour
                             bitRgb = cv2.bitwise_and(maskRgb, maskRgb, mask=mask)
-                            cv2.imwrite('../images/bitRgb.png', bitRgb)
+                            # cv2.imwrite('../images/bitRgb.png', bitRgb)
                             _, contoursRgb, _ = cv2.findContours(bitRgb, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
                             if not contoursRgb:
                                 continue

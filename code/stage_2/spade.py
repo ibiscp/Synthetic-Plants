@@ -691,3 +691,76 @@ class spade(object):
                 index.write("</tr>")
 
         index.close()
+
+        tf.global_variables_initializer().run()
+
+        segmap_files = glob('./dataset/{}/{}/*.*'.format(self.dataset_name, 'segmap_test'))
+
+        self.saver = tf.train.Saver()
+        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
+        self.result_dir = os.path.join(self.result_dir, self.model_dir)
+        check_folder(self.result_dir)
+
+        if could_load:
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+
+        # write html for visual comparison
+        index_path = os.path.join(self.result_dir, 'index.html')
+        index = open(index_path, 'w')
+        index.write("<html><body><table><tr>")
+        index.write("<th>name</th><th>input</th><th>output</th></tr>")
+
+        for sample_file in tqdm(segmap_files):
+            sample_image = load_segmap(self.dataset_path, sample_file, self.img_width, self.img_height, self.segmap_ch)
+            file_name = os.path.basename(sample_file).split(".")[0]
+            file_extension = os.path.basename(sample_file).split(".")[1]
+
+            for i in range(self.num_style):
+                image_path = os.path.join(self.result_dir, '{}_style{}.{}'.format(file_name, i, file_extension))
+
+                fake_img = self.sess.run(self.random_test_fake_x, feed_dict={self.test_segmap_image: sample_image})
+                save_images(fake_img, [1, 1], image_path)
+
+                index.write("<td>%s</td>" % os.path.basename(image_path))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (sample_file if os.path.isabs(sample_file) else (
+                            '../..' + os.path.sep + sample_file), self.img_width, self.img_height))
+                index.write(
+                    "<td><img src='%s' width='%d' height='%d'></td>" % (image_path if os.path.isabs(image_path) else (
+                            '../..' + os.path.sep + image_path), self.img_width, self.img_height))
+                index.write("</tr>")
+
+        index.close()
+
+    def load_model(self):
+        tf.global_variables_initializer().run()
+
+        self.saver = tf.train.Saver()
+        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
+
+        if could_load:
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+
+    def generate_sample(self, segmap_img):
+
+        if self.segmap_ch == 1:
+            segmap_img = np.expand_dims(segmap_img, axis=-1)
+
+        label_map = convert_from_color_segmentation(self.img_class.color_value_dict, segmap_img, tensor_type=False)
+
+        segmap_onehot = get_one_hot(label_map, len(self.img_class.color_value_dict))
+
+        segmap_onehot = np.expand_dims(segmap_onehot, axis=0)
+
+        fake_img = self.sess.run(self.random_test_fake_x, feed_dict={self.test_segmap_image : segmap_onehot})
+
+        fake_rgb = fake_img[:, :, :, 0:3]
+
+        # Convert to the range [0, 255]
+        fake_rgb = np.rint(postprocessing(fake_rgb)).astype('uint8')[0]
+
+        return fake_rgb
