@@ -55,8 +55,8 @@ def train_segmentation(path, type):
     if not os.path.exists(checkpoint):
         os.makedirs(checkpoint)
 
-    # model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=966, input_width=1296)
-    model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=416, input_width=608)
+    model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=966, input_width=1296)
+    # model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=416, input_width=608)
 
     train_images = os.path.join(path, "train/", type, 'image/')
     files = glob(train_images + '*.png')
@@ -66,7 +66,7 @@ def train_segmentation(path, type):
         train_images= train_images,
         train_annotations= os.path.join(path, "train/", type, 'mask/'),
         checkpoints_path= checkpoint,
-        epochs=2,
+        epochs=5,
         steps_per_epoch=total_files,
         batch_size=1,
         # validate=True,
@@ -89,7 +89,7 @@ def train_segmentation(path, type):
     print("Total  IoU ", np.mean(ious))
 
 # Train synthetic data
-train_segmentation("../../dataset/Segmentation/", "synthetic/")
+train_segmentation("../../../dataset/Segmentation/", "original/")
 
 # Class wise IoU  [0.32636785 0.00036869 0.03619042]
 # Total  IoU  0.12097565181495373
