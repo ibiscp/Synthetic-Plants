@@ -12,7 +12,6 @@ from main import *
 def parseArgs():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Bonn 2016/', help="Dataset path")
-    parser.add_argument("--dataset_type", type=str, default='original', help="Types available [original, combined, synthetic]")
 
     return parser.parse_args()
 
@@ -148,7 +147,7 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                         continue
 
                     # Blank mask
-                    fullMask = np.zeros(shape=(rgbimg.shape[0], rgbimg.shape[1]), dtype="uint8")
+                    maskCrop = np.zeros(shape=(rgbimg.shape[0], rgbimg.shape[1]), dtype="uint8")
 
                     # Radius list
                     radius_list = []
@@ -165,7 +164,7 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                             stem_y = ann['stem']['y']
 
                             # Draw plant on mask
-                            cv2.drawContours(fullMask, [np.array(list(zip(x, y)), dtype=np.int32)], -1, (255, 255, 255), -1)
+                            cv2.drawContours(maskCrop, [np.array(list(zip(x, y)), dtype=np.int32)], -1, (255, 255, 255), -1)
 
                             # Only consider if image is inside picture
                             if (stem_y > 0 and stem_x > 0):
@@ -211,23 +210,65 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 cutted_images += 1
 
                     # Bitwise with RGB mask and most extreme points along the contour
-                    fullMask = cv2.bitwise_not(fullMask)
-                    maskRed = cv2.bitwise_and(maskRed, maskRed, mask=fullMask)
+                    maskWeed = cv2.bitwise_not(maskCrop) # not crop
+
+                    crop = cv2.bitwise_and(maskGreen, maskGreen, mask=maskCrop)
+                    weed = cv2.bitwise_and(maskRed, maskRed, mask=maskWeed)
+
+                    # print(np.max(crop))
+                    # print(np.min(crop))
+                    # cv2.imshow('BEFORE', crop)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                    #
+                    # print(np.max(weed))
+                    # print(np.min(weed))
+                    # cv2.imshow('BEFORE', weed)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+
+                    # test = crop/127.5 + weed/255
+                    # print(np.max(test))
+                    # print(np.min(test))
+                    #
+                    # crop = crop/255
+                    # print(np.max(crop))
+                    # print(np.min(crop))
+                    #
+                    # crop = crop*2
+                    # print(np.max(crop))
+                    # print(np.min(crop))
+                    #
+                    # weed = weed/255
+                    # print(np.max(weed))
+                    # print(np.min(weed))
 
 
-                    ones = np.ones(shape=(rgbimg.shape[0], rgbimg.shape[1]), dtype="uint8")
-                    bitRed = cv2.bitwise_and(ones, ones, mask=maskRed)
-                    bitGreen = cv2.bitwise_and(ones*2, ones*2, mask=maskRgb[:,:,1])
+                    maskRgb = (crop/127.5 + weed/255).astype(np.uint8)
+                    # print(np.max(maskRgb))
+                    # print(np.min(maskRgb))
 
-                    maskRgb = bitRed + bitGreen
+                    # maskRgb = maskRgb.astype(np.uint8)
+
+                    # print(np.max(maskRgb))
+                    # print(np.min(maskRgb))
+                    # cv2.imshow('BEFORE', maskRgb*127)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+
 
                     # Augment images
                     rgbimg_ = augment_image(rgbimg, shape)
                     maskRgb_ = augment_image(maskRgb, shape)
 
+                    for k in range(len(maskRgb_)):
+
+                        cv2.imwrite(output_path + 'train/original/image/image_' + str(imageNumber) + '_' + str(k) + '.png', rgbimg_[k])
+                        cv2.imwrite(output_path + 'train/original/mask/image_' + str(imageNumber) + '_' + str(k) + '.png', maskRgb_[k])
+
                     # Number of folds for the original dataset compared to the original one
                     if len(radius_list) > 0:
-                        for fold in range(4):
+                        for fold in range(2):
                             rgbimgCopy = rgbimg.copy()
                             for [right, left, top, bot, radius, cropMask, cropMaskInv, cropMaskResized] in radius_list:
 
@@ -250,10 +291,7 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 cv2.imwrite(output_path + 'train/synthetic/image/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', rgbimg_[k])
                                 cv2.imwrite(output_path + 'train/synthetic/mask/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', maskRgb_[k])
 
-                    for k in range(len(rgbimg_)):
 
-                        cv2.imwrite(output_path + 'train/original/image/image_' + str(imageNumber) + '_' + str(k) + '.png', rgbimg_[k])
-                        cv2.imwrite(output_path + 'train/original/mask/image_' + str(imageNumber) + '_' + str(k) + '.png', maskRgb_[k])
                     imageNumber += 1
 
     print(complete_radius_list)
