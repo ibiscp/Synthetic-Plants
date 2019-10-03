@@ -107,13 +107,13 @@ def generate_dataset(path, output_path, type="SugarBeets"):
 
     # open session
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        gan = spade(sess, args)
-
-        # build graph
-        gan.build_model()
-
-        # Load model
-        gan.load_model()
+        # gan = spade(sess, args)
+        #
+        # # build graph
+        # gan.build_model()
+        #
+        # # Load model
+        # gan.load_model()
 
         for i, folder in enumerate(folders):
             # Get files
@@ -129,6 +129,10 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                     # Open images
                     rgbimg = cv2.imread(folder + rgbImagesPath + imageName + '.png', cv2.IMREAD_COLOR)
                     maskRgb = cv2.imread(folder + maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
+
+                    cv2.imwrite('../../images/segmentation_dataset/rgb.png', rgbimg)
+                    cv2.imwrite('../../images/segmentation_dataset/mask.png', maskRgb)
+
                     if rgbimg is None or maskRgb is None:
                         continue
                     maskRed = maskRgb[:, :, 2]  # Get only red channel
@@ -209,49 +213,17 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                             else:
                                 cutted_images += 1
 
+                    if len(radius_list) < 2:
+                        continue
+
                     # Bitwise with RGB mask and most extreme points along the contour
                     maskWeed = cv2.bitwise_not(maskCrop) # not crop
 
                     crop = cv2.bitwise_and(maskGreen, maskGreen, mask=maskCrop)
                     weed = cv2.bitwise_and(maskRed, maskRed, mask=maskWeed)
 
-                    # print(np.max(crop))
-                    # print(np.min(crop))
-                    # cv2.imshow('BEFORE', crop)
-                    # cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-                    #
-                    # print(np.max(weed))
-                    # print(np.min(weed))
-                    # cv2.imshow('BEFORE', weed)
-                    # cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-
-                    # test = crop/127.5 + weed/255
-                    # print(np.max(test))
-                    # print(np.min(test))
-                    #
-                    # crop = crop/255
-                    # print(np.max(crop))
-                    # print(np.min(crop))
-                    #
-                    # crop = crop*2
-                    # print(np.max(crop))
-                    # print(np.min(crop))
-                    #
-                    # weed = weed/255
-                    # print(np.max(weed))
-                    # print(np.min(weed))
-
-
                     maskRgb = (crop/127.5 + weed/255).astype(np.uint8)
-                    # print(np.max(maskRgb))
-                    # print(np.min(maskRgb))
 
-                    # maskRgb = maskRgb.astype(np.uint8)
-
-                    # print(np.max(maskRgb))
-                    # print(np.min(maskRgb))
                     # cv2.imshow('BEFORE', maskRgb*127)
                     # cv2.waitKey(0)
                     # cv2.destroyAllWindows()
@@ -268,9 +240,11 @@ def generate_dataset(path, output_path, type="SugarBeets"):
 
                     # Number of folds for the original dataset compared to the original one
                     if len(radius_list) > 0:
-                        for fold in range(2):
+                        for fold in range(4):
                             rgbimgCopy = rgbimg.copy()
                             for [right, left, top, bot, radius, cropMask, cropMaskInv, cropMaskResized] in radius_list:
+
+                                cv2.imwrite('../../images/segmentation_dataset/mask_resized_' + str(radius) + '.png', cropMaskResized)
 
                                 # Generate image
                                 synthetic = gan.generate_sample(cropMaskResized)
@@ -279,9 +253,13 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 # synthetic = np.repeat(synthetic, 3, axis=2)
                                 synthetic = cv2.resize(synthetic, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
 
+                                cv2.imwrite('../../images/segmentation_dataset/synthetic_' + str(radius) + '.png', synthetic)
+
                                 original = cv2.bitwise_and(rgbimgCopy[bot:top,left:right,:], rgbimgCopy[bot:top,left:right,:], mask=cropMaskInv)
                                 synthetic = cv2.bitwise_and(synthetic, synthetic, mask=cropMask)
                                 rgbimgCopy[bot:top,left:right,:] = cv2.add(original,synthetic)
+
+                            cv2.imwrite('../../images/segmentation_dataset/synthetic_rgb.png', rgbimgCopy)
 
                             # Augment generated image
                             rgbimg_ = augment_image(rgbimgCopy, shape)
@@ -318,8 +296,8 @@ if __name__ == '__main__':
     subfolers = ['original/', 'synthetic/']
     subsubfolers = ['image/', 'mask/']
 
-    # output_path = '../../dataset/Segmentation/'
-    output_path = '/Volumes/MAXTOR/Segmentation/'
+    output_path = '../../dataset/Segmentation/'
+    # output_path = '/Volumes/MAXTOR/Segmentation/'
     # Create folders if do not exist
     if os.path.exists(output_path):
         print('\nFolder', output_path, 'already exist, delete it before continue!\n')
