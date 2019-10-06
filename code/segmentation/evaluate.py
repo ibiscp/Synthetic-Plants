@@ -6,7 +6,44 @@ import os
 from tqdm import tqdm
 import numpy as np
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-from segmentation import *
+# from segmentation import *
+
+EPS = 1e-12
+
+def get_iou( gt , pr , n_classes ):
+    class_wise = np.zeros(n_classes)
+    for cl in range(n_classes):
+        target = ( gt == cl )
+        prediction = ( pr == cl )
+
+        intersection = np.logical_and(target, prediction)
+        union = np.logical_or(target, prediction)
+        iou_score = np.sum(intersection) / (np.sum(union) + EPS )
+        class_wise[cl] = iou_score
+    return class_wise
+
+def get_segmentation_arr(path, nClasses, width, height, no_reshape=False):
+
+    if type(path) is np.ndarray:
+        img = path
+    else:
+        img = cv2.imread(path, 0)
+
+    img = cv2.resize(img, (width, height), interpolation=cv2.INTER_NEAREST).flatten()
+
+    return img
+
+def evaluate(model=None, inp_inmges=None, annotations=None, checkpoints_path=None):
+
+    ious = []
+    for inp, ann in tqdm(zip(inp_inmges, annotations)):
+        pr = predict(model, inp).flatten()
+        gt = get_segmentation_arr(ann, model.n_classes, model.output_width, model.output_height)
+        iou = get_iou(gt, pr, model.n_classes)
+        ious.append(iou)
+    ious = np.array(ious)
+
+    return ious
 
 def evaluate(path, type):
 
