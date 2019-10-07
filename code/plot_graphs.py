@@ -11,11 +11,11 @@ matplotlib.rcParams['savefig.pad_inches'] = 0
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from utils import *
-import csv
 
 COLUMNS = 6
 ROWS = 8
 
+# Calculate the samples to plot based on log scale
 def gen_log_space(limit, n):
     result = [1]
     if n>1:  # just a check to avoid ZeroDivisionError
@@ -33,6 +33,7 @@ def gen_log_space(limit, n):
     # round, re-adjust to 0 indexing (i.e. minus 1) and return np.uint64 array
     return np.array(list(map(lambda x: round(x)-1, result)), dtype=np.uint64)
 
+# Plot the grid showing the evolution of training in different epochs
 def plot_grid(path, type, number):
 
     files = glob(path + type + '_' + str(number) + '_*.png')
@@ -73,15 +74,9 @@ def load_bla(type):
 
     return files
 
-def create_csv(metrics, type):
+# Plot the graph with the metrics
+def create_graph(metrics, type):
     names = ['Inception', 'Mode', 'MMD', 'EMD', 'FID', 'KNN']
-    # with open(type+'.csv', 'w') as csvFile:
-    #     writer = csv.writer(csvFile)
-    #
-    #     writer.writerow(names)
-    #
-    #     for i, m in enumerate(data):
-    #         writer.writerow([i, m.emd, m.fid, m.inception, m.knn, m.mmd, m.mode])
 
     # Calculate gold metrics
     gold_metrics = calculate_gold_metrics(load_bla(type), type)
@@ -156,7 +151,7 @@ def create_csv(metrics, type):
     plt.close(fig)
 
 
-
+########## PLOT GRID WITH GENERATED SAMPLES OVER TRAINING ##########
 # # Mask
 # path = '../../plants_output/blur/samples/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-500-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/'
 # type = 'mask'
@@ -175,10 +170,12 @@ def create_csv(metrics, type):
 # number = 24
 # plot_grid(path, type, number)
 
+########## PLOT GRID WITH METRICS OVER TRAINING ##########
+
 metrics_mask = load(os.path.join('../../plants_output/resources/model/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-300-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/', 'checkpoint.pkl'))['metrics']
-create_csv(metrics_mask, 'mask')
+create_graph(metrics_mask, 'mask')
 
 # [metrics_rgb, metrics_nir] = load(os.path.join('/Volumes/MAXTOR/spade_final_training/model/SPADE_load_test_SugarBeets_256_hinge_2multi_4dis_1_1_10_10_0.05_sn_TTUR_more/', 'metrics.pkl'))
-# create_csv(metrics_rgb, 'rgb')
+# create_graph(metrics_rgb, 'rgb')
 #
-# create_csv(metrics_nir, 'nir')
+# create_graph(metrics_nir, 'nir')
