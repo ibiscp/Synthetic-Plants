@@ -67,7 +67,8 @@ def plot_gif(images, epoch, gif_dir, type):
 
 # Create the gif given the dictionary and its size
 def create_gif(images_directory, metrics, test_dataset, type, duration=10):
-    files = glob(images_directory + type + '_*.png')
+
+    files = glob(os.path.join(images_directory, '*_*.png'))
     files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     frames = []
     images = []
