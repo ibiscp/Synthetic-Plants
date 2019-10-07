@@ -338,11 +338,12 @@ if __name__ == '__main__':
         # Generate data
         generate_dataset(path=args.dataset_path, output_path=output_path)
 
-        # Split train and test files
-        for s in subfolers:
-            files = os.listdir(output_path + folders[0] + s + subsubfolers[0])
-            cut_files = random.sample(files, int(len(files)*0.2))
+        # Split original train and test files
+        # for s in subfolers:
+        s = 'original/'
+        files = os.listdir(output_path + folders[0] + s + subsubfolers[0])
+        cut_files = random.sample(files, int(len(files)*0.2))
 
-            for c in cut_files:
-                for ss in subsubfolers:
-                    shutil.move(output_path + folders[0] + s + ss + c, output_path + folders[1] + s + ss + c)
+        for c in cut_files:
+            for ss in subsubfolers:
+                shutil.move(output_path + folders[0] + s + ss + c, output_path + folders[1] + s + ss + c)
