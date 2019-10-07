@@ -56,6 +56,27 @@ def find_max_radius(contours, stem_x, stem_y):
 
     return dist
 
+# Calculate stem if crop is outside image and max and min values for coordinates
+def calculateStem(contours, stem_x, stem_y):
+
+    m_x = [10e3, -10e3]
+    m_y = [10e3, -10e3]
+
+    for c in contours:
+        for point in c:
+            point = point[0]
+
+            m_x = [min(m_x[0], point[0]), max(m_x[1], point[0])]
+            m_y = [min(m_y[0], point[1]), max(m_y[1], point[1])]
+
+    # if stem_x < 0:
+    #     stem_x = int(m_x[0] + (m_x[1] - m_x[0])/2)
+    #
+    # if stem_y < 0:
+    #     stem_y = int(m_y[0] + (m_y[1] - m_y[0]) / 2)
+
+    return stem_x, stem_y, m_x, m_y
+
 def get_alignment_parameters(img2, img1):
 
     sift = cv2.xfeatures2d.SIFT_create()
@@ -107,13 +128,13 @@ def generate_dataset(path, output_path, type="SugarBeets"):
 
     # open session
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        # gan = spade(sess, args)
-        #
-        # # build graph
-        # gan.build_model()
-        #
-        # # Load model
-        # gan.load_model()
+        gan = spade(sess, args)
+
+        # build graph
+        gan.build_model()
+
+        # Load model
+        gan.load_model()
 
         for i, folder in enumerate(folders):
             # Get files
@@ -170,7 +191,7 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                             # Draw plant on mask
                             cv2.drawContours(maskCrop, [np.array(list(zip(x, y)), dtype=np.int32)], -1, (255, 255, 255), -1)
 
-                            # Only consider if image is inside picture
+                            # # Only consider if image is inside picture
                             if (stem_y > 0 and stem_x > 0):
 
                                 # Contour mask (roughy position of the plant)
@@ -186,35 +207,33 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 # Find maximum radius of the plant
                                 ret, thresh = cv2.threshold(bitRgb, 127, 255, 0)
                                 im2, contours, hierarchy = cv2.findContours(thresh, 1, 2)
+
+                                # Calculate stem if not given
+                                stem_x, stem_y, m_x, m_y = calculateStem(contours, stem_x, stem_y)
+
                                 radius = find_max_radius(contours, stem_x, stem_y)
                                 radius = int(radius * 1.1)
 
-                                right = stem_x + radius
-                                left = stem_x - radius
-                                top = stem_y + radius
-                                bot = stem_y - radius
+                                right = m_x[1]
+                                left = m_x[0]
+                                top = m_y[1]
+                                bot = m_y[0]
 
-                                # Check if crop is fully inside image
-                                if bot > 0 and top < shape[0] and left > 0 and right < shape[1]:
-                                    complete_radius_list.append(radius)
+                                complete_radius_list.append(radius)
 
-                                    # Crop images
-                                    cropMask = bitRgb[bot:top, left:right]
-                                    cropMaskInv = cv2.bitwise_not(cropMask)
+                                # Crop images
+                                cropMask = np.zeros(shape=(2*radius, 2*radius), dtype="uint8")
+                                cropMask[radius-(stem_y-bot):radius+(top-stem_y), radius-(stem_x-left):radius+(right-stem_x)]=bitRgb[bot:top, left:right]
 
-                                    # Resize mask
-                                    cropMaskResized = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_NEAREST)
+                                cropMaskInv = cv2.bitwise_not(cropMask)
 
-                                    radius_list.append([right, left, top, bot, radius, cropMask, cropMaskInv, cropMaskResized])
+                                # Resize mask
+                                cropMaskResized = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_NEAREST)
 
-                                else:
-                                    cutted_images += 1
-
+                                radius_list.append([m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskInv, cropMaskResized])
                             else:
                                 cutted_images += 1
 
-                    if len(radius_list) < 2:
-                        continue
 
                     # Bitwise with RGB mask and most extreme points along the contour
                     maskWeed = cv2.bitwise_not(maskCrop) # not crop
@@ -242,9 +261,12 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                     if len(radius_list) > 0:
                         for fold in range(4):
                             rgbimgCopy = rgbimg.copy()
-                            for [right, left, top, bot, radius, cropMask, cropMaskInv, cropMaskResized] in radius_list:
+                            for [m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskInv, cropMaskResized] in radius_list:
 
-                                cv2.imwrite('../../images/segmentation_dataset/mask_resized_' + str(radius) + '.png', cropMaskResized)
+                                right = m_x[1]
+                                left = m_x[0]
+                                top = m_y[1]
+                                bot = m_y[0]
 
                                 # Generate image
                                 synthetic = gan.generate_sample(cropMaskResized)
@@ -253,13 +275,17 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 # synthetic = np.repeat(synthetic, 3, axis=2)
                                 synthetic = cv2.resize(synthetic, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
 
-                                cv2.imwrite('../../images/segmentation_dataset/synthetic_' + str(radius) + '.png', synthetic)
+                                original = cv2.bitwise_and(rgbimgCopy[bot:top, left:right, :],
+                                                           rgbimgCopy[bot:top, left:right, :],
+                                                           mask=cropMaskInv[radius - (stem_y - bot): radius + (top - stem_y),
+                                                                            radius - (stem_x - left): radius + (right - stem_x)])
 
-                                original = cv2.bitwise_and(rgbimgCopy[bot:top,left:right,:], rgbimgCopy[bot:top,left:right,:], mask=cropMaskInv)
                                 synthetic = cv2.bitwise_and(synthetic, synthetic, mask=cropMask)
-                                rgbimgCopy[bot:top,left:right,:] = cv2.add(original,synthetic)
+                                synthetic = synthetic[radius - (stem_y - bot): radius + (top - stem_y),
+                                                      radius - (stem_x - left): radius + (right - stem_x),
+                                                      :]
 
-                            cv2.imwrite('../../images/segmentation_dataset/synthetic_rgb.png', rgbimgCopy)
+                                rgbimgCopy[bot:top,left:right,:] = cv2.add(original,synthetic)
 
                             # Augment generated image
                             rgbimg_ = augment_image(rgbimgCopy, shape)
@@ -268,7 +294,6 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                             for k in range(len(maskRgb_)):
                                 cv2.imwrite(output_path + 'train/synthetic/image/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', rgbimg_[k])
                                 cv2.imwrite(output_path + 'train/synthetic/mask/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', maskRgb_[k])
-
 
                     imageNumber += 1
 
