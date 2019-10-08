@@ -56,7 +56,8 @@ def train_segmentation(path, type):
         os.makedirs(checkpoint)
 
     # model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=966, input_width=1296)
-    model = keras_segmentation.models.fcn.fcn_8_resnet50(n_classes=3,  input_height=416, input_width=608)
+    # model = keras_segmentation.models.fcn.fcn_8_resnet50(n_classes=3,  input_height=416, input_width=608)
+    model = keras_segmentation.models.unet.resnet50_unet(n_classes=3)
 
     train_images = os.path.join(path, "train/", type, 'image/')
     files = glob(train_images + '*.png')
@@ -69,18 +70,14 @@ def train_segmentation(path, type):
         epochs=5,
         steps_per_epoch=total_files,
         batch_size=1,
-        verify_dataset=False,
-        # validate=True,
-        # val_images=os.path.join(path, "test/", type, 'image/'),
-        # val_annotations=os.path.join(path, "test/", type, 'mask/'),
-        # val_batch_size=2,
+        verify_dataset=False
     )
 
     # Calculate IoU
-    images = glob(os.path.join(path, 'test/', type, 'image/', '*.png'))
+    images = glob(os.path.join(path, 'test/original/image/', '*.png'))
     images.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
 
-    masks = glob(os.path.join(path, "test/", type, 'mask/', '*.png'))
+    masks = glob(os.path.join(path, 'test/original/mask/', '*.png'))
     masks.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
 
     ious = evaluate(model=model, inp_inmges=images, annotations=masks)
@@ -90,9 +87,5 @@ def train_segmentation(path, type):
     print("Total  IoU ", np.mean(ious))
 
 # Train synthetic data
-train_segmentation("../../../dataset/Segmentation/", "original/")
+train_segmentation("../../../dataset/Segmentation/", "original-synthetic/")
 # train_segmentation("/Volumes/MAXTOR/Segmentation/", "original/")
-
-
-# Class wise IoU  [0.32636785 0.00036869 0.03619042]
-# Total  IoU  0.12097565181495373
