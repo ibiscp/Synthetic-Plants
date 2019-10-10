@@ -107,12 +107,16 @@ def create_graph(metrics, type):
     num_metrics = len(names)
     epochs = len(emd)
 
-    size = (426*3, 674*3)
+    # size = (426 * 3, 674 * 3)
+    size = (800 * 3, 400 * 3)
     width = size[0]
     height = size[1]
     dpi = 100
 
-    fig, ax = plt.subplots(num_metrics, figsize=(width / dpi, height / dpi), dpi=dpi)
+    # fig, ax = plt.subplots(num_metrics, figsize=(width / dpi, height / dpi), dpi=dpi)
+    plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
+    gs1 = gridspec.GridSpec(int(num_metrics/2), 2)
+    # gs1.update(hspace=0.025, wspace=0.025, top=1)
     # fig.suptitle('Epoch: ' + str(epoch + 1), x=0.11, y=.96, horizontalalignment='left', verticalalignment='top',
     #              fontsize=14)
     # fig.patch.set_visible(False)
@@ -120,26 +124,27 @@ def create_graph(metrics, type):
     # fig = plt.figure(figsize=(width/dpi, height/dpi), dpi=dpi, frameon=False, tight_layout=True)
 
     for i in range(num_metrics):
+        ax = plt.subplot(gs1[i])
         horizontal = getattr(gold_metrics, names[i].lower())
         max_ = max(max(metrics[names[i].lower()]), horizontal)
         min_ = min(min(metrics[names[i].lower()]), horizontal)
         offset = (max_ - min_) * 0.1
 
         # ax = fig.add_subplot(num_metrics, 1, i + 1)
-        ax[i].axhline(y=horizontal, color='r', linestyle=':')
-        ax[i].set_xlim([0, epochs])
-        ax[i].set_ylim([min_ - offset, max_ + offset])
-        ax[i].set_ylabel(names[i], fontsize=18)
-        ax[i].yaxis.set_label_position("right")
-        ax[i].plot(metrics[names[i].lower()])
+        ax.axhline(y=horizontal, color='r', linestyle=':')
+        ax.set_xlim([0, epochs])
+        ax.set_ylim([min_ - offset, max_ + offset])
+        ax.set_ylabel(names[i], fontsize=18)
+        ax.yaxis.set_label_position("right")
+        ax.plot(metrics[names[i].lower()])
         # ax[i].axes.get_xaxis().set_fontsize(18)
         # ax[i].axes.get_yaxis().set_fontsize(18)
-        ax[i].tick_params(axis='both', which='major', labelsize=18)
+        ax.tick_params(axis='both', which='major', labelsize=18)
 
-        if i != num_metrics - 1:
-            ax[i].axes.get_xaxis().set_visible(False)
+        if i != num_metrics - 1 and i != num_metrics - 2:
+            ax.axes.get_xaxis().set_visible(False)
 
-    fig.canvas.draw()
+    # plt.canvas.draw()
     # image = np.fromstring(fig.canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
     # frames.append(image)
 
@@ -148,7 +153,7 @@ def create_graph(metrics, type):
     plt.savefig(os.path.join(gif_dir, name), bbox_inches='tight', pad_inches=0.025)
     # plt.close()
 
-    plt.close(fig)
+    plt.close()
 
 
 ########## PLOT GRID WITH GENERATED SAMPLES OVER TRAINING ##########
@@ -172,10 +177,10 @@ def create_graph(metrics, type):
 
 ########## PLOT GRID WITH METRICS OVER TRAINING ##########
 
-metrics_mask = load(os.path.join('../../plants_output/resources/model/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-300-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/', 'checkpoint.pkl'))['metrics']
-create_graph(metrics_mask, 'mask')
+# metrics_mask = load(os.path.join('/Volumes/MAXTOR/Final Files/mask/model/DCGAN-batch_size-32-d_beta_1-0.5-d_ld-0.001-d_lr-0.0002-epochs-300-g_beta_1-0.5-g_ld-0.001-g_lr-0.0002-latent_dim-100/', 'checkpoint.pkl'))['metrics']
+# create_graph(metrics_mask, 'mask')
 
-# [metrics_rgb, metrics_nir] = load(os.path.join('/Volumes/MAXTOR/spade_final_training/model/SPADE_load_test_SugarBeets_256_hinge_2multi_4dis_1_1_10_10_0.05_sn_TTUR_more/', 'metrics.pkl'))
-# create_graph(metrics_rgb, 'rgb')
-#
-# create_graph(metrics_nir, 'nir')
+[metrics_rgb, metrics_nir] = load(os.path.join('/Volumes/MAXTOR/Final Files/spade/model/SPADE_load_test_SugarBeets_256_hinge_2multi_4dis_1_1_10_10_0.05_sn_TTUR_more/', 'metrics.pkl'))
+create_graph(metrics_rgb, 'rgb')
+
+create_graph(metrics_nir, 'nir')

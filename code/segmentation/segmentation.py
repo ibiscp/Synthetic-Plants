@@ -51,12 +51,10 @@ def train_segmentation(path, type):
     if not os.path.exists(checkpoint):
         os.makedirs(checkpoint)
 
-    checkpoint = os.path.join(checkpoint, type)
+    checkpoint = os.path.join(checkpoint, type + "/")
     if not os.path.exists(checkpoint):
         os.makedirs(checkpoint)
 
-    # model = keras_segmentation.models.fcn.fcn_32_resnet50(n_classes=3,  input_height=966, input_width=1296)
-    # model = keras_segmentation.models.fcn.fcn_8_resnet50(n_classes=3,  input_height=416, input_width=608)
     model = keras_segmentation.models.unet.resnet50_unet(n_classes=3)
 
     train_images = os.path.join(path, "train/", type, 'image/')
@@ -87,5 +85,5 @@ def train_segmentation(path, type):
     print("Total  IoU ", np.mean(ious))
 
 # Train synthetic data
-train_segmentation("../../../dataset/Segmentation/", "original-synthetic/")
-# train_segmentation("/Volumes/MAXTOR/Segmentation/", "original/")
+# train_segmentation("../../../dataset/Segmentation/", "original-synthetic")
+train_segmentation("/Volumes/MAXTOR/Segmentation/", "original-synthetic")

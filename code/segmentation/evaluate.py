@@ -53,6 +53,7 @@ def evaluate_original(path, type):
         "input_width": 608}
 
     latest_weights = "resources/" + type + "/.4"
+    latest_weights = "resources/" + type + "resources-original-.4"
 
     model = model_from_checkpoint_path(model_config, latest_weights)
 
@@ -70,5 +71,5 @@ def evaluate_original(path, type):
     print("Total  IoU ", np.mean(ious))
 
 # Train synthetic data
-evaluate_original("../../../dataset/Segmentation/", "original-synthetic/")
-# evaluate("/Volumes/MAXTOR/Segmentation/", "original-synthetic/")
+# evaluate_original("../../../dataset/Segmentation/", "original-synthetic/")
+evaluate_original("/Volumes/MAXTOR/Segmentation/", "original/")

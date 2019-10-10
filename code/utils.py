@@ -67,13 +67,12 @@ def plot_gif(images, epoch, gif_dir, type):
 
 # Create the gif given the dictionary and its size
 def create_gif(images_directory, metrics, test_dataset, type, duration=10):
-
-    files = glob(os.path.join(images_directory, '*_*.png'))
+    files = glob(os.path.join(images_directory, type + '_*.png'))
     files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     frames = []
     images = []
 
-    size = (1100, 1100)
+    size = (700, 700)
 
     # Get gif images
     for f in files:
@@ -105,7 +104,8 @@ def generate_graphs(metrics, test_dataset, size, type):
 
     # List of metrics
     # names = ['emd', 'fid', 'inception', 'knn', 'mmd', 'mode']
-    names = ['emd', 'fid', 'inception', 'mmd', 'mode']
+    # names = ['emd', 'fid', 'inception', 'mmd', 'mode']
+    names = ['Inception', 'Mode', 'MMD', 'EMD', 'FID', 'KNN']
 
     emd = []
     fid = []
@@ -144,18 +144,18 @@ def generate_graphs(metrics, test_dataset, size, type):
         # fig = plt.figure(figsize=(width/dpi, height/dpi), dpi=dpi, frameon=False, tight_layout=True)
 
         for i in range(num_metrics):
-            horizontal = getattr(gold_metrics, names[i])
-            max_ = max(max(metrics[names[i]]), horizontal)
-            min_ = min(min(metrics[names[i]]), horizontal)
+            horizontal = getattr(gold_metrics, names[i].lower())
+            max_ = max(max(metrics[names[i].lower()]), horizontal)
+            min_ = min(min(metrics[names[i].lower()]), horizontal)
             offset = (max_ - min_) * 0.1
 
             # ax = fig.add_subplot(num_metrics, 1, i + 1)
             ax[i].axhline(y=horizontal, color='r', linestyle=':')
             ax[i].set_xlim([0, epochs])
             ax[i].set_ylim([min_ - offset, max_ + offset])
-            ax[i].set_ylabel(names[i])
+            ax[i].set_ylabel(names[i].lower())
             ax[i].yaxis.set_label_position("right")
-            ax[i].plot(metrics[names[i]][:epoch])
+            ax[i].plot(metrics[names[i].lower()][:epoch])
 
             if i != num_metrics-1:
                 ax[i].axes.get_xaxis().set_visible(False)
