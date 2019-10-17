@@ -77,7 +77,7 @@ def create_gif(images_directory, metrics, test_dataset, type, duration=10):
     # Get gif images
     for f in files:
         img = cv2.imread(f, 1)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, size)
         images.append(img)
 
@@ -86,19 +86,29 @@ def create_gif(images_directory, metrics, test_dataset, type, duration=10):
 
     for i, image in enumerate(images):
         graph = graphs[i]
+        graph = cv2.cvtColor(graph, cv2.COLOR_RGB2BGR)
         # graph = graph[3:3 + size[0], 5:5 + size[1]]
         new_im = np.hstack((image, graph))
         frames.append(new_im)
 
+    height, width, layers = frames[0].shape
+    size = (width, height)
+
     # Repeat last frames
-    for i in range(int(len(files)*.5)):
-        frames.append(frames[-1])
+    # for i in range(int(len(files)*.5)):
+    #     frames.append(frames[-1])
 
     # Calculate time between frames
-    time = duration/len(frames)
+    fps = len(frames)/duration
+
+    out = cv2.VideoWriter(images_directory + 'training_' + type + '.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
+
+    for i in range(len(frames)):
+        out.write(frames[i])
+    out.release()
 
     # Create gif
-    imageio.mimsave(images_directory + 'training_' + type + '.gif', frames, format='GIF', duration=time)
+    # imageio.mimsave(images_directory + 'training_' + type + '.mp4', frames, format='TIFF')#, duration=time)
 
 def generate_graphs(metrics, test_dataset, size, type):
 
@@ -131,8 +141,8 @@ def generate_graphs(metrics, test_dataset, size, type):
     gold_metrics = calculate_gold_metrics(test_dataset, type)
 
     # Graph size
-    width = size[0]
-    height = size[1]
+    width = int(size[0] * 1.1)
+    height = int(size[1] * 1.05)
     dpi = 100
 
     for epoch in range(epochs):
@@ -153,7 +163,7 @@ def generate_graphs(metrics, test_dataset, size, type):
             ax[i].axhline(y=horizontal, color='r', linestyle=':')
             ax[i].set_xlim([0, epochs])
             ax[i].set_ylim([min_ - offset, max_ + offset])
-            ax[i].set_ylabel(names[i].lower())
+            ax[i].set_ylabel(names[i])
             ax[i].yaxis.set_label_position("right")
             ax[i].plot(metrics[names[i].lower()][:epoch])
 
@@ -162,6 +172,8 @@ def generate_graphs(metrics, test_dataset, size, type):
 
         fig.canvas.draw()
         image = np.fromstring(fig.canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
+        image = image[0:size[1], int(width*0.05):int(width*0.05) + size[0], :]
+        image = cv2.resize(image, size, interpolation=cv2.INTER_NEAREST)
         frames.append(image)
 
         plt.close(fig)
