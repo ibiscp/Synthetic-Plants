@@ -22,7 +22,7 @@ class spade(object):
         self.sess = sess
         self.checkpoint_dir = args.checkpoint_dir
         self.log_dir = args.log_dir
-        self.dataset_name = args.dataset
+        self.dataset_name = args.dataset_name
         self.augment_flag = args.augment_flag
         self.result_dir = args.result_dir
 
@@ -78,7 +78,7 @@ class spade(object):
         check_folder(self.samples_dir)
         self.seed_dir = args.seed_dir
 
-        self.dataset_path = os.path.join(args.dataset_path, self.dataset_name)
+        self.dataset_path = args.dataset_path
 
         self.metrics_rgb = []
         self.metrics_nir = []

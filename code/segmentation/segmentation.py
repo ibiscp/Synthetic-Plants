@@ -2,6 +2,7 @@ import keras_segmentation
 from keras_segmentation.predict import *
 from glob import glob
 import os
+from argparse import ArgumentParser
 from tqdm import tqdm
 import numpy as np
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -9,6 +10,13 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 # https://github.com/divamgupta/image-segmentation-keras
 
 EPS = 1e-12
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Segmentation/', help="Dataset path")
+    parser.add_argument("--dataset_type", type=str, default='original-synthetic', help="Dataset type")
+
+    return parser.parse_args()
 
 def get_iou( gt , pr , n_classes ):
     class_wise = np.zeros(n_classes)
@@ -85,5 +93,7 @@ def train_segmentation(path, type):
     print("Total  IoU ", np.mean(ious))
 
 # Train synthetic data
-# train_segmentation("../../../dataset/Segmentation/", "original-synthetic")
-train_segmentation("/Volumes/MAXTOR/Segmentation/", "original-synthetic")
+if __name__ == '__main__':
+    args = parse_args()
+
+    train_segmentation(args.dataset_path, args.dataset_type)

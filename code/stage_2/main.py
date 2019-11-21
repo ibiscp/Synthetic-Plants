@@ -14,7 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--phase', type=str, default='train', choices=('train', 'guide', 'random'), help='phase name')
     parser.add_argument('--dataset', type=str, default='SugarBeets_256', help='Dataset name')
-    parser.add_argument('--dataset_path', type=str, default='../../../plants_dataset/', help='Dataset path')
+    parser.add_argument('--dataset_path', type=str, default='../../../plants_dataset/SugarBeets_256/', help='Dataset path')
 
     parser.add_argument('--epoch', type=int, default=300, help='The number of epochs to run')
     parser.add_argument('--iteration', type=int, default=1, help='The number of training iterations')
