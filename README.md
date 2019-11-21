@@ -6,6 +6,8 @@ This project proposes a pipeline for image dataset augmentation generating synth
 
 The process is validated using metrics that compare the quality of the gen- erated images with the original dataset and also a semantic segmentation model that evaluates the difference between using the original dataset compared with the synthetic and augmented dataset. The metrics show that the values of the synthetic images converge to the values of the original ones as the quality improves over the training and also that the segmentation performance can indeed be improved by using the new augmented dataset.
 
+[FULL THESIS](https://github.com/ibiscp/Synthetic-Plants/raw/master/Thesis_PREVEDELLO_Ibis.pdf)
+
 ## Dataset
 
 Dataset used:
