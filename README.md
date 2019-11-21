@@ -19,12 +19,15 @@ Annotations:
 ## Training
 
 * Mask Image Generation
+
 [![Mask Image Generation](https://i.ytimg.com/vi/v2xjxWj6xKI/1.jpg)](https://www.youtube.com/watch?v=v2xjxWj6xKI)
 
 * RGB Image Generation
+
 [![RGB Image Generation](https://i.ytimg.com/vi/6gSF-rcAYKI/1.jpg)](https://www.youtube.com/watch?v=6gSF-rcAYKI)
 
 * NIR Image Generation
+
 [![NIR Image Generation](https://i.ytimg.com/vi/v6mq-mdmbDI/1.jpg)](https://www.youtube.com/watch?v=v6mq-mdmbDI)
 
 ## Results
