@@ -3,10 +3,11 @@ import yaml
 import cv2
 import numpy as np
 from argparse import ArgumentParser
-import glob
+from glob import glob
 import math
 import shutil
 import random
+from utils import *
 
 import matplotlib
 matplotlib.use("WebAgg")
@@ -25,16 +26,12 @@ TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../plants_dataset/Bonn 2016/', help="Dataset path")
-    parser.add_argument("--plant_type", type=str, default='SugarBeets', help="Output path")
+    parser.add_argument("--output_path", type=str, default='../../plants_dataset/SugarBeets_256/', help="Output path")
     parser.add_argument("--dimension", type=int, default=256, help="Image dimension")
-    parser.add_argument("--background", type=str2bool, nargs='?', const=True, default=False, help="Keep (true) or remove (false) background")
-    parser.add_argument("--blur", type=str2bool, nargs='?', const=True, default=True, help="Remove background with blur")
+    parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
+    parser.add_argument("--blur", type=str2bool, default=False, help="Remove background with blur")
 
     return parser.parse_args()
-
-def str2bool(v):
-  #susendberg's function
-  return v.lower() in ("yes", "true", "t", "1")
 
 # Flip image
 def flip_image(img, mode = 1):
@@ -106,7 +103,7 @@ def get_alignment_parameters(img2, img1):
 
     return H
 
-def generate_dataset(path, output_path, dim = 256, type='SugarBeets', background = True, blur = True):
+def generate_dataset(path, output_path, dim = 256, background = True, blur = True):
 
     annotationsPath = 'annotations/YAML/'
     nirImagesPath = 'images/nir/'
@@ -117,7 +114,7 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', background
     imageNumber = 0
 
     # Get folders
-    folders = glob.glob(path + '/*/')
+    folders = glob(path + '/*/')
     # folders = ['../../plants-dataset/Bonn 2016/CKA_160523/']
     print('Number of folders:', len(folders))
     radius_list = []
@@ -152,6 +149,8 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', background
                 # Image shape
                 shape = rgbimg.shape
 
+                black_background = np.zeros(shape=shape, dtype="uint8")
+
                 # Get parameter to superpose images
                 try:
                     H = get_alignment_parameters(cv2.cvtColor(rgbimg, cv2.COLOR_BGR2GRAY), nirimg)
@@ -180,7 +179,7 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', background
                     print('\t\tError: Empty Yaml')
                     continue
                 for ann in field:
-                    if ann['type'] == type:
+                    if ann['type'] == 'SugarBeets':
 
                         # Contours
                         x = ann['contours'][0]['x']
@@ -228,8 +227,10 @@ def generate_dataset(path, output_path, dim = 256, type='SugarBeets', background
                             # Final image
                             if not background:      # Remove background
                                 if blur:
-                                    finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalBlur)
-                                    finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalBlur)
+                                    # finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalBlur)
+                                    # finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalBlur)
+                                    finalRgb = blend_with_mask_matrix(rgbimg, black_background, finalBlur)
+                                    finalNir = cv2.bitwise_and(nirimg, black_background[:,:,1], finalBlur)
                                 else:
                                     finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalMask)
                                     finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalMask)
@@ -275,7 +276,7 @@ if __name__ == '__main__':
     folders = ['train/', 'test/']
     subfolers = ['mask/', 'rgb/', 'nir/', 'blur/']
 
-    output_path = '../dataset/' + args.plant_type + '_' + str(args.dimension) + '/'
+    output_path = args.output_path #'../dataset/' + 'SugarBeets' + '_' + str(args.dimension) + '/'
     # Create folders if do not exist
     if os.path.exists(output_path):
         print('\nFolder', output_path, 'already exist, delete it before continue!\n')
@@ -288,7 +289,7 @@ if __name__ == '__main__':
                 os.makedirs(output_path + f + s)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, type=args.plant_type, background=args.background, blur=args.blur)
+        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, background=args.background, blur=args.blur)
 
     # Split train and test files
     files = os.listdir(output_path + folders[0] + 'mask/')

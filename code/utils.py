@@ -14,6 +14,24 @@ import matplotlib.gridspec as gridspec
 
 GIF_MATRIX = 5
 
+def blend_with_mask_matrix(src1, src2, mask):
+    mask = np.repeat(np.expand_dims(mask, axis=2), 3, axis=2)
+    res_channels = []
+    for c in range(0, src1.shape[2]):
+        a = src1[:, :, c]
+        b = src2[:, :, c]
+        m = mask[:, :, c]
+        res = cv2.add(
+            cv2.multiply(b, cv2.divide(np.full_like(m, 255) - m, 255.0, dtype=cv2.CV_32F), dtype=cv2.CV_32F),
+            cv2.multiply(a, cv2.divide(m, 255.0, dtype=cv2.CV_32F), dtype=cv2.CV_32F),
+           dtype=cv2.CV_8U)
+        res_channels += [res]
+    res = cv2.merge(res_channels)
+    return res
+
+def str2bool(x):
+    return x.lower() in ("yes", "true", "t", "1")
+
 def check_folder(log_dir):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)

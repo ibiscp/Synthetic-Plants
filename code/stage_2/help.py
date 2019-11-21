@@ -248,9 +248,6 @@ def show_all_variables():
     model_vars = tf.trainable_variables()
     slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
-def str2bool(x):
-    return x.lower() in ('true')
-
 def get_one_hot(targets, nb_classes):
 
     x = np.eye(nb_classes)[targets]

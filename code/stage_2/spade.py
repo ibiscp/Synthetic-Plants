@@ -78,7 +78,7 @@ class spade(object):
         check_folder(self.samples_dir)
         self.seed_dir = args.seed_dir
 
-        self.dataset_path = os.path.join('../../../plants_dataset/', self.dataset_name)
+        self.dataset_path = os.path.join(args.dataset_path, self.dataset_name)
 
         self.metrics_rgb = []
         self.metrics_nir = []

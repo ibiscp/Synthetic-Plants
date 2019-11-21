@@ -9,9 +9,16 @@ import shutil
 import random
 from main import *
 
+import sys
+sys.path.append('../')
+from utils import *
+
 def parseArgs():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Bonn 2016/', help="Dataset path")
+    parser.add_argument("--output_path", type=str, default='../../../plants_dataset/Segmentation/', help="Output path")
+    parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
+    parser.add_argument("--blur", type=str2bool, default=False, help="Remove background with blur")
 
     return parser.parse_args()
 
@@ -105,7 +112,7 @@ def get_alignment_parameters(img2, img1):
 
     return H
 
-def generate_dataset(path, output_path, type="SugarBeets"):
+def generate_dataset(path, output_path, background, blur, type="SugarBeets"):
 
     annotationsPath = 'annotations/YAML/'
     rgbImagesPath = 'images/rgb/'
@@ -150,9 +157,6 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                     # Open images
                     rgbimg = cv2.imread(folder + rgbImagesPath + imageName + '.png', cv2.IMREAD_COLOR)
                     maskRgb = cv2.imread(folder + maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
-
-                    cv2.imwrite('../../images/segmentation_dataset/rgb.png', rgbimg)
-                    cv2.imwrite('../../images/segmentation_dataset/mask.png', maskRgb)
 
                     if rgbimg is None or maskRgb is None:
                         continue
@@ -271,21 +275,33 @@ def generate_dataset(path, output_path, type="SugarBeets"):
                                 # Generate image
                                 synthetic = gan.generate_sample(cropMaskResized)
                                 synthetic = cv2.cvtColor(synthetic, cv2.COLOR_BGR2RGB)
+                                # User for test only
                                 # synthetic = np.expand_dims(cropMaskResized, axis=2)
                                 # synthetic = np.repeat(synthetic, 3, axis=2)
+
                                 synthetic = cv2.resize(synthetic, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
-
-                                original = cv2.bitwise_and(rgbimgCopy[bot:top, left:right, :],
-                                                           rgbimgCopy[bot:top, left:right, :],
-                                                           mask=cropMaskInv[radius - (stem_y - bot): radius + (top - stem_y),
-                                                                            radius - (stem_x - left): radius + (right - stem_x)])
-
-                                synthetic = cv2.bitwise_and(synthetic, synthetic, mask=cropMask)
                                 synthetic = synthetic[radius - (stem_y - bot): radius + (top - stem_y),
-                                                      radius - (stem_x - left): radius + (right - stem_x),
-                                                      :]
+                                            radius - (stem_x - left): radius + (right - stem_x), :]
 
-                                rgbimgCopy[bot:top,left:right,:] = cv2.add(original,synthetic)
+                                if blur:
+                                    cropMask = cv2.blur(cropMask, (5, 5))
+                                    # cropMaskInv = cv2.blur(cropMaskInv, (20, 20))
+
+                                if not background:
+
+                                    original = rgbimgCopy[bot:top, left:right, :]
+
+                                    mask = cropMask[radius - (stem_y - bot): radius + (top - stem_y),
+                                                    radius - (stem_x - left): radius + (right - stem_x)]
+
+                                    rgbimgCopy[bot:top,left:right,:] = blend_with_mask_matrix(synthetic, original, mask)
+
+                                else:
+                                    rgbimgCopy[bot:top, left:right, :] = synthetic
+
+                                # cv2.imshow('BEFORE', rgbimgCopy)
+                                # cv2.waitKey(0)
+                                # cv2.destroyAllWindows()
 
                             # Augment generated image
                             rgbimg_ = augment_image(rgbimgCopy, shape)
@@ -321,7 +337,7 @@ if __name__ == '__main__':
     subfolers = ['original/', 'synthetic/']
     subsubfolers = ['image/', 'mask/']
 
-    output_path = '../../dataset/Segmentation/'
+    output_path = args.output_path # #'../../dataset/Segmentation/'
     # output_path = '/Volumes/MAXTOR/Segmentation/'
     # Create folders if do not exist
     if os.path.exists(output_path):
@@ -336,7 +352,7 @@ if __name__ == '__main__':
                     os.makedirs(output_path + f + s + w)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path)
+        generate_dataset(path=args.dataset_path, output_path=output_path, background=args.background, blur=args.blur)
 
         # Split original train and test files
         # for s in subfolers:
