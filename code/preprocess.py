@@ -26,6 +26,7 @@ TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../plants_dataset/Bonn 2016/', help="Dataset path")
+    parser.add_argument("--annotation_path", type=str, default='../../sugar_beet_annotation/', help="Annotation path")
     parser.add_argument("--output_path", type=str, default='../../plants_dataset/SugarBeets_256/', help="Output path")
     parser.add_argument("--dimension", type=int, default=256, help="Image dimension")
     parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
@@ -103,13 +104,13 @@ def get_alignment_parameters(img2, img1):
 
     return H
 
-def generate_dataset(path, output_path, dim = 256, background = True, blur = True):
+def generate_dataset(path, output_path, annotation_path, dim = 256, background = True, blur = True):
 
-    annotationsPath = 'annotations/YAML/'
+    annotationsPath = os.path.join(annotation_path, 'yamls/')
     nirImagesPath = 'images/nir/'
     rgbImagesPath = 'images/rgb/'
-    maskNirPath = 'annotations/dlp/iMapCleaned/'
-    maskRgbPath = 'annotations/dlp/colorCleaned/'
+    maskNirPath = os.path.join(annotation_path, 'masks/iMap/')
+    maskRgbPath = os.path.join(annotation_path, 'masks/color/')
 
     imageNumber = 0
 
@@ -121,24 +122,33 @@ def generate_dataset(path, output_path, dim = 256, background = True, blur = Tru
 
     for i, folder in enumerate(folders):
         # Get files
-        files = os.listdir(folder + annotationsPath)
+        files = os.listdir(folder + rgbImagesPath)
         # files = ['bonirob_2016-05-23-10-57-33_4_frame157.yaml']
         number_files = len(files)
         print('\nFolder %d/%d: %s' %(i+1,len(folders),folder))
         print('\tNumber of files:', number_files)
 
         for j, file in enumerate(files):
-            print('\tFile %d/%d: %s' % (j + 1, len(files), file))
-            with open(folder + annotationsPath + file, 'r') as stream:
+
+            yaml_file = annotationsPath + file.split('.')[0] + '.yaml'
+
+            print('\tFile %d/%d: %s' % (j + 1, len(files), yaml_file))
+
+            if not os.path.isfile(yaml_file):
+                print('\t\tError: YAML does not exist')
+                continue
+
+            with open(yaml_file, 'r') as stream:
                 # Image name
                 imageName = os.path.splitext(file)[0]
 
                 # Open images
                 rgbimg = cv2.imread(folder + rgbImagesPath + imageName + '.png', cv2.IMREAD_COLOR)
                 nirimg = cv2.imread(folder + nirImagesPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
-                maskNir = cv2.imread(folder + maskNirPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
-                maskRgb = cv2.imread(folder + maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
+                maskNir = cv2.imread(maskNirPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
+                maskRgb = cv2.imread(maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
                 if rgbimg is None or nirimg is None or maskNir is None or maskRgb is None:
+                    print('\t\tError: Image does not exist')
                     continue
                 maskRgb = maskRgb[:, :,1]  # Get only green channel
 
@@ -276,7 +286,7 @@ if __name__ == '__main__':
     folders = ['train/', 'test/']
     subfolers = ['mask/', 'rgb/', 'nir/', 'blur/']
 
-    output_path = args.output_path #'../dataset/' + 'SugarBeets' + '_' + str(args.dimension) + '/'
+    output_path = args.output_path
     # Create folders if do not exist
     if os.path.exists(output_path):
         print('\nFolder', output_path, 'already exist, delete it before continue!\n')
@@ -289,7 +299,7 @@ if __name__ == '__main__':
                 os.makedirs(output_path + f + s)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path, dim=args.dimension, background=args.background, blur=args.blur)
+        generate_dataset(path=args.dataset_path, output_path=output_path, annotation_path=args.annotation_path, dim=args.dimension, background=args.background, blur=args.blur)
 
     # Split train and test files
     files = os.listdir(output_path + folders[0] + 'mask/')

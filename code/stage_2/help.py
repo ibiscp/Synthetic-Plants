@@ -85,44 +85,45 @@ class Image_data:
         self.segmap = glob(self.segmap_dataset_path + '/*.*')
         self.segmap_test = glob(self.segmap_test_dataset_path + '/*.*')
 
-        segmap_label_path = os.path.join(self.dataset_path, 'segmap_label.txt')
+        # segmap_label_path = os.path.join(self.dataset_path, 'segmap_label.txt')
 
-        if os.path.exists(segmap_label_path) :
-            print("segmap_label exists ! ")
-
-            with open(segmap_label_path, 'r') as f:
-                self.color_value_dict = literal_eval(f.read())
-
-        else:
-            print("segmap_label no exists ! ")
-            x_img_list = []
-            label = 0
-            # for img in tqdm(self.segmap) :
-
-            img = self.segmap[0]
-            if self.segmap_channel == 1 :
-                x = cv2.imread(img, flags=cv2.IMREAD_GRAYSCALE)
-            else :
-                x = cv2.imread(img, flags=cv2.IMREAD_COLOR)
-                x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
-
-            x = cv2.resize(x, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
-
-            if self.segmap_channel == 1 :
-                x = np.expand_dims(x, axis=-1)
-
-            h, w, c = x.shape
-
-            x_img_list.append(x)
-
-            for i in range(h) :
-                for j in range(w) :
-                    if tuple(x[i, j, :]) not in self.color_value_dict.keys() :
-                        self.color_value_dict[tuple(x[i, j, :])] = label
-                        label += 1
-
-            with open(segmap_label_path, 'w') as f :
-                f.write(str(self.color_value_dict))
+        self.color_value_dict = {(0,): 0, (255,): 1}
+        # if os.path.exists(segmap_label_path) :
+        #     print("segmap_label exists ! ")
+        #
+        #     with open(segmap_label_path, 'r') as f:
+        #         self.color_value_dict = literal_eval(f.read())
+        #
+        # else:
+        #     print("segmap_label no exists ! ")
+        #     x_img_list = []
+        #     label = 0
+        #     # for img in tqdm(self.segmap) :
+        #
+        #     img = self.segmap[0]
+        #     if self.segmap_channel == 1 :
+        #         x = cv2.imread(img, flags=cv2.IMREAD_GRAYSCALE)
+        #     else :
+        #         x = cv2.imread(img, flags=cv2.IMREAD_COLOR)
+        #         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
+        #
+        #     x = cv2.resize(x, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_NEAREST)
+        #
+        #     if self.segmap_channel == 1 :
+        #         x = np.expand_dims(x, axis=-1)
+        #
+        #     h, w, c = x.shape
+        #
+        #     x_img_list.append(x)
+        #
+        #     for i in range(h) :
+        #         for j in range(w) :
+        #             if tuple(x[i, j, :]) not in self.color_value_dict.keys() :
+        #                 self.color_value_dict[tuple(x[i, j, :])] = label
+        #                 label += 1
+        #
+        #     with open(segmap_label_path, 'w') as f :
+        #         f.write(str(self.color_value_dict))
 
         print()
 

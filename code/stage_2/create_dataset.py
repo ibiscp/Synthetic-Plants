@@ -16,6 +16,7 @@ from utils import *
 def parseArgs():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Bonn 2016/', help="Dataset path")
+    parser.add_argument("--annotation_path", type=str, default='../../../sugar_beet_annotation/', help="Annotation path")
     parser.add_argument("--output_path", type=str, default='../../../plants_dataset/Segmentation/', help="Output path")
     parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
     parser.add_argument("--blur", type=str2bool, default=False, help="Remove background with blur")
@@ -112,11 +113,11 @@ def get_alignment_parameters(img2, img1):
 
     return H
 
-def generate_dataset(path, output_path, background, blur, type="SugarBeets"):
+def generate_dataset(path, output_path, annotation_path, background, blur, type="SugarBeets"):
 
-    annotationsPath = 'annotations/YAML/'
+    annotationsPath = os.path.join(annotation_path, 'yamls/')
     rgbImagesPath = 'images/rgb/'
-    maskRgbPath = 'annotations/dlp/color/'
+    maskRgbPath = os.path.join(annotation_path, 'masks/color/')
 
     imageNumber = 0
 
@@ -145,12 +146,20 @@ def generate_dataset(path, output_path, background, blur, type="SugarBeets"):
 
         for i, folder in enumerate(folders):
             # Get files
-            files = os.listdir(folder + annotationsPath)
+            files = os.listdir(folder + rgbImagesPath)
             print('\nFolder %d/%d: %s' %(i+1,len(folders),folder))
 
             for j, file in enumerate(files):
-                print('\tFile %d/%d: %s' % (j + 1, len(files), file))
-                with open(folder + annotationsPath + file, 'r') as stream:
+
+                yaml_file = annotationsPath + file.split('.')[0] + '.yaml'
+
+                print('\tFile %d/%d: %s' % (j + 1, len(files), yaml_file))
+
+                if not os.path.isfile(yaml_file):
+                    print('\t\tError: YAML does not exist')
+                    continue
+
+                with open(yaml_file, 'r') as stream:
                     # Image name
                     imageName = os.path.splitext(file)[0]
 
@@ -159,6 +168,7 @@ def generate_dataset(path, output_path, background, blur, type="SugarBeets"):
                     maskRgb = cv2.imread(folder + maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
 
                     if rgbimg is None or maskRgb is None:
+                        print('\t\tError: Image does not exist')
                         continue
                     maskRed = maskRgb[:, :, 2]  # Get only red channel
                     maskGreen = maskRgb[:, :, 1]  # Get only green channel
@@ -352,7 +362,7 @@ if __name__ == '__main__':
                     os.makedirs(output_path + f + s + w)
 
         # Generate data
-        generate_dataset(path=args.dataset_path, output_path=output_path, background=args.background, blur=args.blur)
+        generate_dataset(path=args.dataset_path, output_path=output_path, annotation_path=args.annotation_path, background=args.background, blur=args.blur)
 
         # Split original train and test files
         # for s in subfolers:
