@@ -759,8 +759,10 @@ class spade(object):
         fake_img = self.sess.run(self.random_test_fake_x, feed_dict={self.test_segmap_image : segmap_onehot})
 
         fake_rgb = fake_img[:, :, :, 0:3]
+        fake_nir = fake_img[:, :, :, 3]
 
         # Convert to the range [0, 255]
         fake_rgb = np.rint(postprocessing(fake_rgb)).astype('uint8')[0]
+        fake_nir = np.rint(postprocessing(fake_nir)).astype('uint8')[0]
 
-        return fake_rgb
+        return fake_rgb, fake_nir

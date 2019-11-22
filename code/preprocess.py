@@ -29,8 +29,8 @@ def parse_args():
     parser.add_argument("--annotation_path", type=str, default='../../sugar_beet_annotation/', help="Annotation path")
     parser.add_argument("--output_path", type=str, default='../../plants_dataset/SugarBeets_256/', help="Output path")
     parser.add_argument("--dimension", type=int, default=256, help="Image dimension")
-    parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
-    parser.add_argument("--blur", type=str2bool, default=False, help="Remove background with blur")
+    parser.add_argument("--background", type=str2bool, default=False, help="Keep (true) or remove (false) background")
+    parser.add_argument("--blur", type=str2bool, default=True, help="Remove background with blur")
 
     return parser.parse_args()
 
@@ -147,6 +147,7 @@ def generate_dataset(path, output_path, annotation_path, dim = 256, background =
                 nirimg = cv2.imread(folder + nirImagesPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
                 maskNir = cv2.imread(maskNirPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
                 maskRgb = cv2.imread(maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
+
                 if rgbimg is None or nirimg is None or maskNir is None or maskRgb is None:
                     print('\t\tError: Image does not exist')
                     continue
@@ -159,25 +160,25 @@ def generate_dataset(path, output_path, annotation_path, dim = 256, background =
                 # Image shape
                 shape = rgbimg.shape
 
-                black_background = np.zeros(shape=shape, dtype="uint8")
+                black_background = np.zeros(shape=(shape[0],shape[1],4), dtype="uint8")
 
-                # Get parameter to superpose images
-                try:
-                    H = get_alignment_parameters(cv2.cvtColor(rgbimg, cv2.COLOR_BGR2GRAY), nirimg)
-                except:
-                    H = None
-
-                if H is None:
-                    print('\t\tError: Empty H matrix')
-                    continue
-
-                # print(np.sum(np.abs(H)))
-                if np.sum(np.abs(H)) > 10:
-                    print('\t\tError: Error in alignment')
-                    continue
-
-                nirimg = cv2.warpPerspective(nirimg, H, (shape[1], shape[0]))
-                maskNir = cv2.warpPerspective(maskNir, H, (shape[1], shape[0]))
+                # # Get parameter to superpose images
+                # try:
+                #     H = get_alignment_parameters(cv2.cvtColor(rgbimg, cv2.COLOR_BGR2GRAY), nirimg)
+                # except:
+                #     H = None
+                #
+                # if H is None:
+                #     print('\t\tError: Empty H matrix')
+                #     continue
+                #
+                # # print(np.sum(np.abs(H)))
+                # if np.sum(np.abs(H)) > 10:
+                #     print('\t\tError: Error in alignment')
+                #     continue
+                #
+                # nirimg = cv2.warpPerspective(nirimg, H, (shape[1], shape[0]))
+                # maskNir = cv2.warpPerspective(maskNir, H, (shape[1], shape[0]))
 
                 # Get content from yaml file
                 content = yaml.safe_load(stream)
@@ -188,6 +189,13 @@ def generate_dataset(path, output_path, annotation_path, dim = 256, background =
                 except:
                     print('\t\tError: Empty Yaml')
                     continue
+
+                # Undistort images
+                flag, nirimg, maskNir = align_images(rgbimg, nirimg, maskNir)
+
+                if flag:
+                    continue
+
                 for ann in field:
                     if ann['type'] == 'SugarBeets':
 
@@ -239,8 +247,10 @@ def generate_dataset(path, output_path, annotation_path, dim = 256, background =
                                 if blur:
                                     # finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalBlur)
                                     # finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalBlur)
-                                    finalRgb = blend_with_mask_matrix(rgbimg, black_background, finalBlur)
-                                    finalNir = cv2.bitwise_and(nirimg, black_background[:,:,1], finalBlur)
+                                    final = np.concatenate((rgbimg, np.expand_dims(nirimg, axis=2)), axis=2)
+                                    final = blend_with_mask_matrix(final, black_background, finalBlur)
+                                    finalRgb = final[:,:,0:3]
+                                    finalNir = final[:,:,3]
                                 else:
                                     finalRgb = cv2.bitwise_and(rgbimg, rgbimg, mask=finalMask)
                                     finalNir = cv2.bitwise_and(nirimg, nirimg, mask=finalMask)

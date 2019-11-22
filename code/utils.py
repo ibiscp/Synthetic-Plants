@@ -14,8 +14,61 @@ import matplotlib.gridspec as gridspec
 
 GIF_MATRIX = 5
 
+def align_images(rgbimg, nirimg, maskNir):
+
+    shape = rgbimg.shape
+    flag = 0
+
+    # Get parameter to superpose images
+    try:
+        H = get_alignment_parameters(cv2.cvtColor(rgbimg, cv2.COLOR_BGR2GRAY), nirimg)
+    except:
+        H = None
+
+    if H is None:
+        print('\t\tError: Empty H matrix')
+        return 1,1,1
+
+    # print(np.sum(np.abs(H)))
+    if np.sum(np.abs(H)) > 10:
+        print('\t\tError: Error in alignment')
+        return 1,1,1
+
+    nirimg = cv2.warpPerspective(nirimg, H, (shape[1], shape[0]))
+    maskNir = cv2.warpPerspective(maskNir, H, (shape[1], shape[0]))
+
+    return 0, nirimg, maskNir
+
+def get_alignment_parameters(img2, img1):
+
+    sift = cv2.xfeatures2d.SIFT_create()
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
+
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+
+    # Apply ratio test
+    good = []
+    for m in matches:
+        if m[0].distance < 0.5 * m[1].distance:
+            good.append(m)
+    matches = np.asarray(good)
+
+    if len(matches[:, 0]) >= 4:
+        src = np.float32([kp1[m.queryIdx].pt for m in matches[:, 0]]).reshape(-1, 1, 2)
+        dst = np.float32([kp2[m.trainIdx].pt for m in matches[:, 0]]).reshape(-1, 1, 2)
+        H, masked = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
+        # print H
+    else:
+        print("\t\tCan't find enough keypoints.")
+        H = None
+
+    return H
+
 def blend_with_mask_matrix(src1, src2, mask):
-    mask = np.repeat(np.expand_dims(mask, axis=2), 3, axis=2)
+    mask = np.repeat(np.expand_dims(mask, axis=2), src1.shape[2], axis=2)
     res_channels = []
     for c in range(0, src1.shape[2]):
         a = src1[:, :, c]

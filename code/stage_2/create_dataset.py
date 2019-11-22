@@ -13,13 +13,23 @@ import sys
 sys.path.append('../')
 from utils import *
 
+RGB_CAMERA_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291], [0.000000, 2150.03686, 480.680634], [0.000000, 0.000000, 1.000000]])
+RGB_PROJECTION_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291, 0.000000], [0.000000, 2150.03686, 480.680634, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
+RGB_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
+
+NIR_CAMERA_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019], [0.000000, 2162.2948, 481.20451], [0.000000, 0.000000, 1.000000]])
+NIR_PROJECTION_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019, 0.000000], [0.000000, 2162.2948, 481.20451, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
+NIR_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
+
+TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
+
 def parseArgs():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Bonn 2016/', help="Dataset path")
     parser.add_argument("--annotation_path", type=str, default='../../../sugar_beet_annotation/', help="Annotation path")
     parser.add_argument("--output_path", type=str, default='../../../plants_dataset/Segmentation/', help="Output path")
-    parser.add_argument("--background", type=str2bool, default=True, help="Keep (true) or remove (false) background")
-    parser.add_argument("--blur", type=str2bool, default=False, help="Remove background with blur")
+    parser.add_argument("--background", type=str2bool, default=False, help="Keep (true) or remove (false) background")
+    parser.add_argument("--blur", type=str2bool, default=True, help="Remove background with blur")
 
     return parser.parse_args()
 
@@ -85,38 +95,12 @@ def calculateStem(contours, stem_x, stem_y):
 
     return stem_x, stem_y, m_x, m_y
 
-def get_alignment_parameters(img2, img1):
-
-    sift = cv2.xfeatures2d.SIFT_create()
-    # find the keypoints and descriptors with SIFT
-    kp1, des1 = sift.detectAndCompute(img1, None)
-    kp2, des2 = sift.detectAndCompute(img2, None)
-
-    bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des1, des2, k=2)
-
-    # Apply ratio test
-    good = []
-    for m in matches:
-        if m[0].distance < 0.5 * m[1].distance:
-            good.append(m)
-    matches = np.asarray(good)
-
-    if len(matches[:, 0]) >= 4:
-        src = np.float32([kp1[m.queryIdx].pt for m in matches[:, 0]]).reshape(-1, 1, 2)
-        dst = np.float32([kp2[m.trainIdx].pt for m in matches[:, 0]]).reshape(-1, 1, 2)
-        H, masked = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
-        # print H
-    else:
-        print("\t\tCan't find enough keypoints.")
-        H = None
-
-    return H
-
 def generate_dataset(path, output_path, annotation_path, background, blur, type="SugarBeets"):
 
     annotationsPath = os.path.join(annotation_path, 'yamls/')
+    nirImagesPath = 'images/nir/'
     rgbImagesPath = 'images/rgb/'
+    maskNirPath = os.path.join(annotation_path, 'masks/iMap/')
     maskRgbPath = os.path.join(annotation_path, 'masks/color/')
 
     imageNumber = 0
@@ -165,13 +149,19 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
 
                     # Open images
                     rgbimg = cv2.imread(folder + rgbImagesPath + imageName + '.png', cv2.IMREAD_COLOR)
-                    maskRgb = cv2.imread(folder + maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
+                    nirimg = cv2.imread(folder + nirImagesPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
+                    maskRgb = cv2.imread(maskRgbPath + imageName + '.png', cv2.IMREAD_COLOR)
+                    maskNir = cv2.imread(maskNirPath + imageName + '.png', cv2.IMREAD_GRAYSCALE)
 
-                    if rgbimg is None or maskRgb is None:
+                    if rgbimg is None or nirimg is None or maskNir is None or maskRgb is None:
                         print('\t\tError: Image does not exist')
                         continue
                     maskRed = maskRgb[:, :, 2]  # Get only red channel
                     maskGreen = maskRgb[:, :, 1]  # Get only green channel
+
+                    # Undistort NIR
+                    nirimg = cv2.undistort(nirimg, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
+                    maskNir = cv2.undistort(maskNir, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
 
                     shape = rgbimg.shape
 
@@ -183,6 +173,12 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
                         field = content["annotation"]
                     except:
                         print('\t\tError: Empty Yaml')
+                        continue
+
+                    # Undistort images
+                    flag, nirimg, maskNir = align_images(rgbimg, nirimg, maskNir)
+
+                    if flag:
                         continue
 
                     # Blank mask
@@ -218,8 +214,17 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
                                 if not contoursRgb:
                                     continue
 
+                                # Bitwise with NIR mask and most extreme points along the contour
+                                bitNir = cv2.bitwise_and(maskNir, maskNir, mask=mask)
+                                _, contoursNir, _ = cv2.findContours(bitNir, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+                                # Final mask
+                                finalMask = np.zeros(shape=(shape[0], shape[1]), dtype="uint8")
+                                cv2.drawContours(finalMask, contoursRgb, -1, (255, 255, 255), -1)
+                                cv2.drawContours(finalMask, contoursNir, -1, (255, 255, 255), -1)
+
                                 # Find maximum radius of the plant
-                                ret, thresh = cv2.threshold(bitRgb, 127, 255, 0)
+                                ret, thresh = cv2.threshold(finalMask, 127, 255, 0)
                                 im2, contours, hierarchy = cv2.findContours(thresh, 1, 2)
 
                                 # Calculate stem if not given
@@ -237,14 +242,14 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
 
                                 # Crop images
                                 cropMask = np.zeros(shape=(2*radius, 2*radius), dtype="uint8")
-                                cropMask[radius-(stem_y-bot):radius+(top-stem_y), radius-(stem_x-left):radius+(right-stem_x)]=bitRgb[bot:top, left:right]
+                                cropMask[radius-(stem_y-bot):radius+(top-stem_y), radius-(stem_x-left):radius+(right-stem_x)]=finalMask[bot:top, left:right]
 
-                                cropMaskInv = cv2.bitwise_not(cropMask)
+                                # cropMask = cv2.bitwise_not(cropMask)
 
                                 # Resize mask
                                 cropMaskResized = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_NEAREST)
 
-                                radius_list.append([m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskInv, cropMaskResized])
+                                radius_list.append([m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskResized])
                             else:
                                 cutted_images += 1
 
@@ -257,57 +262,67 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
 
                     maskRgb = (crop/127.5 + weed/255).astype(np.uint8)
 
-                    # cv2.imshow('BEFORE', maskRgb*127)
-                    # cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-
-
                     # Augment images
                     rgbimg_ = augment_image(rgbimg, shape)
-                    maskRgb_ = augment_image(maskRgb, shape)
+                    nirimg_ = augment_image(nirimg, shape)
+                    mask_ = augment_image(maskRgb, shape)
 
-                    for k in range(len(maskRgb_)):
+                    # Original images
+                    for k in range(len(mask_)):
 
-                        cv2.imwrite(output_path + 'train/original/image/image_' + str(imageNumber) + '_' + str(k) + '.png', rgbimg_[k])
-                        cv2.imwrite(output_path + 'train/original/mask/image_' + str(imageNumber) + '_' + str(k) + '.png', maskRgb_[k])
+                        cv2.imwrite(output_path + 'train/original/rgb/image_' + str(imageNumber) + '_' + str(k) + '.png', rgbimg_[k])
+                        cv2.imwrite(output_path + 'train/original/nir/image_' + str(imageNumber) + '_' + str(k) + '.png', nirimg_[k])
+                        cv2.imwrite(output_path + 'train/original/mask/image_' + str(imageNumber) + '_' + str(k) + '.png', mask_[k])
 
                     # Number of folds for the original dataset compared to the original one
                     if len(radius_list) > 0:
                         for fold in range(4):
                             rgbimgCopy = rgbimg.copy()
-                            for [m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskInv, cropMaskResized] in radius_list:
+                            nirimgCopy = nirimg.copy()
+                            for [m_x, m_y, stem_x, stem_y, radius, cropMask, cropMaskResized] in radius_list:
 
                                 right = m_x[1]
                                 left = m_x[0]
                                 top = m_y[1]
                                 bot = m_y[0]
 
-                                # Generate image
-                                synthetic = gan.generate_sample(cropMaskResized)
-                                synthetic = cv2.cvtColor(synthetic, cv2.COLOR_BGR2RGB)
-                                # User for test only
-                                # synthetic = np.expand_dims(cropMaskResized, axis=2)
-                                # synthetic = np.repeat(synthetic, 3, axis=2)
+                                # # Generate image
+                                synthetic_rgb, synthetic_nir = gan.generate_sample(cropMaskResized)
+                                synthetic_rgb = cv2.cvtColor(synthetic_rgb, cv2.COLOR_BGR2RGB)
+                                # Used for test only
+                                # synthetic_nir = cropMaskResized
+                                # synthetic_rgb = np.expand_dims(synthetic_nir, axis=2)
+                                # synthetic_rgb = np.repeat(synthetic_rgb, 3, axis=2)
 
-                                synthetic = cv2.resize(synthetic, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
-                                synthetic = synthetic[radius - (stem_y - bot): radius + (top - stem_y),
+                                synthetic_rgb = cv2.resize(synthetic_rgb, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
+                                synthetic_rgb = synthetic_rgb[radius - (stem_y - bot): radius + (top - stem_y),
                                             radius - (stem_x - left): radius + (right - stem_x), :]
+
+                                synthetic_nir = cv2.resize(synthetic_nir, (radius*2, radius*2), interpolation=cv2.INTER_AREA)
+                                synthetic_nir = synthetic_nir[radius - (stem_y - bot): radius + (top - stem_y),
+                                            radius - (stem_x - left): radius + (right - stem_x)]
 
                                 if blur:
                                     cropMask = cv2.blur(cropMask, (5, 5))
-                                    # cropMaskInv = cv2.blur(cropMaskInv, (20, 20))
 
                                 if not background:
 
-                                    original = rgbimgCopy[bot:top, left:right, :]
+                                    original_rgb = rgbimgCopy[bot:top, left:right, :]
+                                    original_nir = nirimgCopy[bot:top, left:right]
+
+                                    original = np.concatenate((original_rgb, np.expand_dims(original_nir, axis=2)), axis=2)
+                                    synthetic = np.concatenate((synthetic_rgb, np.expand_dims(synthetic_nir, axis=2)), axis=2)
 
                                     mask = cropMask[radius - (stem_y - bot): radius + (top - stem_y),
                                                     radius - (stem_x - left): radius + (right - stem_x)]
 
-                                    rgbimgCopy[bot:top,left:right,:] = blend_with_mask_matrix(synthetic, original, mask)
+                                    blended = blend_with_mask_matrix(synthetic, original, mask)
+                                    rgbimgCopy[bot:top,left:right,:] = blended[:,:,0:3]
+                                    nirimgCopy[bot:top,left:right] = blended[:,:,3]
 
                                 else:
-                                    rgbimgCopy[bot:top, left:right, :] = synthetic
+                                    rgbimgCopy[bot:top, left:right, :] = synthetic_rgb
+                                    nirimgCopy[bot:top, left:right] = synthetic_nir
 
                                 # cv2.imshow('BEFORE', rgbimgCopy)
                                 # cv2.waitKey(0)
@@ -315,11 +330,13 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
 
                             # Augment generated image
                             rgbimg_ = augment_image(rgbimgCopy, shape)
+                            nirimg_ = augment_image(nirimgCopy, shape)
 
                             # Write image
-                            for k in range(len(maskRgb_)):
-                                cv2.imwrite(output_path + 'train/synthetic/image/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', rgbimg_[k])
-                                cv2.imwrite(output_path + 'train/synthetic/mask/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', maskRgb_[k])
+                            for k in range(len(mask_)):
+                                cv2.imwrite(output_path + 'train/synthetic/rgb/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', rgbimg_[k])
+                                cv2.imwrite(output_path + 'train/synthetic/nir/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', nirimg_[k])
+                                cv2.imwrite(output_path + 'train/synthetic/mask/image_' + str(imageNumber) + '_' + str(fold) + '_' + str(k) + '.png', mask_[k])
 
                     imageNumber += 1
 
@@ -345,7 +362,7 @@ if __name__ == '__main__':
 
     folders = ['train/', 'test/']
     subfolers = ['original/', 'synthetic/']
-    subsubfolers = ['image/', 'mask/']
+    subsubfolers = ['rgb/', 'nir/', 'mask/']
 
     output_path = args.output_path # #'../../dataset/Segmentation/'
     # output_path = '/Volumes/MAXTOR/Segmentation/'
