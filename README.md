@@ -8,6 +8,10 @@ The process is validated using metrics that compare the quality of the gen- erat
 
 [FULL THESIS](https://github.com/ibiscp/Synthetic-Plants/raw/master/Thesis_PREVEDELLO_Ibis.pdf)
 
+<p align="center">
+<img src="images/style.png" width="900"/><br>
+</p>
+
 ## Dataset
 
 Dataset used:
