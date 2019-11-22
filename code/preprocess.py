@@ -13,16 +13,6 @@ import matplotlib
 matplotlib.use("WebAgg")
 import matplotlib.pyplot as plt
 
-RGB_CAMERA_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291], [0.000000, 2150.03686, 480.680634], [0.000000, 0.000000, 1.000000]])
-RGB_PROJECTION_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291, 0.000000], [0.000000, 2150.03686, 480.680634, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
-RGB_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
-
-NIR_CAMERA_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019], [0.000000, 2162.2948, 481.20451], [0.000000, 0.000000, 1.000000]])
-NIR_PROJECTION_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019, 0.000000], [0.000000, 2162.2948, 481.20451, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
-NIR_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
-
-TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
-
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../plants_dataset/Bonn 2016/', help="Dataset path")
@@ -153,32 +143,10 @@ def generate_dataset(path, output_path, annotation_path, dim = 256, background =
                     continue
                 maskRgb = maskRgb[:, :,1]  # Get only green channel
 
-                # Undistort NIR
-                nirimg = cv2.undistort(nirimg, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
-                maskNir = cv2.undistort(maskNir, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
-
                 # Image shape
                 shape = rgbimg.shape
 
                 black_background = np.zeros(shape=(shape[0],shape[1],4), dtype="uint8")
-
-                # # Get parameter to superpose images
-                # try:
-                #     H = get_alignment_parameters(cv2.cvtColor(rgbimg, cv2.COLOR_BGR2GRAY), nirimg)
-                # except:
-                #     H = None
-                #
-                # if H is None:
-                #     print('\t\tError: Empty H matrix')
-                #     continue
-                #
-                # # print(np.sum(np.abs(H)))
-                # if np.sum(np.abs(H)) > 10:
-                #     print('\t\tError: Error in alignment')
-                #     continue
-                #
-                # nirimg = cv2.warpPerspective(nirimg, H, (shape[1], shape[0]))
-                # maskNir = cv2.warpPerspective(maskNir, H, (shape[1], shape[0]))
 
                 # Get content from yaml file
                 content = yaml.safe_load(stream)

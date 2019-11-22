@@ -13,16 +13,6 @@ import sys
 sys.path.append('../')
 from utils import *
 
-RGB_CAMERA_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291], [0.000000, 2150.03686, 480.680634], [0.000000, 0.000000, 1.000000]])
-RGB_PROJECTION_MATRIX = np.matrix([[2150.03686, 0.000000, 649.2291, 0.000000], [0.000000, 2150.03686, 480.680634, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
-RGB_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
-
-NIR_CAMERA_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019], [0.000000, 2162.2948, 481.20451], [0.000000, 0.000000, 1.000000]])
-NIR_PROJECTION_MATRIX = np.matrix([[2162.2948, 0.000000, 650.22019, 0.000000], [0.000000, 2162.2948, 481.20451, 0.000000], [0.000000, 0.000000, 1.000000, 0.000000]])
-NIR_DISTORT_COEFFICIENTS = np.matrix([0.0, 0.0, 0.0, 0.0, 0.0])
-
-TRANSLATION = RGB_CAMERA_MATRIX[0:2,2] - NIR_CAMERA_MATRIX[0:2,2]
-
 def parseArgs():
     parser = ArgumentParser()
     parser.add_argument("--dataset_path", type=str, default='../../../plants_dataset/Bonn 2016/', help="Dataset path")
@@ -159,10 +149,6 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
                     maskRed = maskRgb[:, :, 2]  # Get only red channel
                     maskGreen = maskRgb[:, :, 1]  # Get only green channel
 
-                    # Undistort NIR
-                    nirimg = cv2.undistort(nirimg, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
-                    maskNir = cv2.undistort(maskNir, NIR_CAMERA_MATRIX, NIR_DISTORT_COEFFICIENTS, None, RGB_CAMERA_MATRIX)
-
                     shape = rgbimg.shape
 
                     # Get content from yaml file
@@ -243,8 +229,6 @@ def generate_dataset(path, output_path, annotation_path, background, blur, type=
                                 # Crop images
                                 cropMask = np.zeros(shape=(2*radius, 2*radius), dtype="uint8")
                                 cropMask[radius-(stem_y-bot):radius+(top-stem_y), radius-(stem_x-left):radius+(right-stem_x)]=finalMask[bot:top, left:right]
-
-                                # cropMask = cv2.bitwise_not(cropMask)
 
                                 # Resize mask
                                 cropMaskResized = cv2.resize(cropMask, (dim, dim), interpolation=cv2.INTER_NEAREST)
