@@ -128,11 +128,11 @@ class Image_data:
         print()
 
 def load_segmap(dataset_path, image_path, img_width, img_height, img_channel):
-    segmap_label_path = os.path.join(dataset_path, 'segmap_label.txt')
+    # segmap_label_path = os.path.join(dataset_path, 'segmap_label.txt')
 
-    with open(segmap_label_path, 'r') as f:
-        color_value_dict = literal_eval(f.read())
-
+    # with open(segmap_label_path, 'r') as f:
+    #     color_value_dict = literal_eval(f.read())
+    color_value_dict = {(0,): 0, (255,): 1}
 
     if img_channel == 1:
         segmap_img = cv2.imread(image_path, flags=cv2.IMREAD_GRAYSCALE)

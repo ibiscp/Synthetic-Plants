@@ -480,7 +480,7 @@ class spade(object):
             ######### Run metrics and save model ##########
 
             # Select true images
-            test_samples = 128
+            test_samples = 32
             true_rgb, true_nir = self.get_images(type=True, number=test_samples)
             # Select false images
             false_rgb, false_nir = self.get_images(type=False, number=test_samples)
